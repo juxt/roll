@@ -82,9 +82,9 @@
      :data
      {:template-file
       (into {}
-            (for [{:keys [service version] :as service} (:services config)]
+            (for [{:keys [service version] :as service-m} (:services config)]
               [(resolve-path [service version "user-data"])
                {:template (str "${file(\"" roll-home "/tf/files/run-server.sh\")}")
-                :vars {:launch_command (when (:launch-command-fn ops) ((:launch-command-fn ops) service config))
-                       :release_file (when (:release-file-fn ops) ((:release-file-fn ops) service config))
+                :vars {:launch_command (when (:launch-command-fn opts) ((:launch-command-fn opts) service-m config))
+                       :release_file (when (:release-file-fn opts) ((:release-file-fn opts) service-m config))
                        :releases_bucket releases-bucket}}]))}}))

@@ -1,0 +1,23 @@
+{
+    "variables": {
+    },
+    "builders": [{
+        "type": "amazon-ebs",
+        "region": "eu-west-1",
+        "source_ami": "ami-0d77397e",
+        "instance_type": "t2.micro",
+        "ssh_username": "ubuntu",
+        "ami_name": "juxt-blue-{{timestamp}}"
+    }],
+    "provisioners": [
+        {
+            "type": "shell",
+            "script": "scripts/install-java.sh",
+            "execute_command": "echo 'packer' | sudo -S sh -c '{{ .Path }}'"
+        },
+        {
+            "type": "shell",
+            "script": "scripts/install-aws.sh"
+        }
+    ]
+}

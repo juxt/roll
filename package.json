@@ -1,0 +1,32 @@
+{
+  "name": "@juxt/roll",
+  "version": "1.0.0",
+  "description": "Rolling Terraform releases",
+  "main": "index.js",
+  "directories": {
+    "test": "test"
+  },
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/juxt/roll.git"
+  },
+  "keywords": [
+    "make",
+    "build"
+  ],
+  "author": "Jon Pither",
+  "license": "MIT",
+  "bugs": {
+    "url": "https://github.com/juxt/roll/issues"
+  },
+  "homepage": "https://github.com/juxt/roll#README.md",
+  "dependencies": {
+    "ini": "^1.3.4",
+    "lumo-cljs": "1.0.0",
+    "toposort": "^1.0.0"
+  },
+  "devDependencies": {}
+}

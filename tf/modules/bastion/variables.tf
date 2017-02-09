@@ -13,3 +13,7 @@ variable "availability_zone" {
 variable "key_name" {}
 
 variable "environment" {}
+
+variable "user_data" {
+  default = ""
+}

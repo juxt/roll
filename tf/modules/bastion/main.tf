@@ -45,13 +45,6 @@ resource "aws_iam_instance_profile" "bastion_host" {
   roles = ["${aws_iam_role.bastion_host.name}"]
 }
 
-data "template_file" "install_user_data" {
-  template = "${file("${path.module}/files/install.sh")}"
-
-  vars {
-  }
-}
-
 resource "aws_instance" "bastion" {
   ami                         = "${var.ami}"
   instance_type               = "${var.instance_type}"
@@ -60,7 +53,7 @@ resource "aws_instance" "bastion" {
   vpc_security_group_ids      = ["${aws_security_group.sg.id}"]
   associate_public_ip_address = true
   key_name                    = "${var.key_name}"
-  user_data                   = "${data.template_file.install_user_data.rendered}"
+  user_data                   = "${var.user_data}"
 
   tags {
     Name = "${var.environment}-bastion"

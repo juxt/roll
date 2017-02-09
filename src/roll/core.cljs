@@ -12,7 +12,7 @@
     {:module
      (concat
       (for [{:keys [service version load-balancer] :as m} (:services config)]
-        (module [service version] :blue
+        (module [service version] :asg
                 (merge
                  (dissoc m :service :version :load-balancer)
                  {:environment (str environment "-" service "-" version)

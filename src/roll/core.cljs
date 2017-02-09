@@ -1,4 +1,5 @@
-(ns roll.core)
+(ns roll.core
+  (:require [cljs.nodejs :as nodejs]))
 
 (defn resolve-path [{:keys [domain profile]} path]
   (clojure.string/join "_"  (map name (concat [domain profile] path))))
@@ -100,3 +101,9 @@
                 :vars {:launch_command (when (:launch-command-fn opts) ((:launch-command-fn opts) service-m))
                        :release_artifact (when (:release-file-fn opts) ((:release-file-fn opts) service-m))
                        :releases_bucket releases-bucket}}]))}}))
+
+(def fs (nodejs/require "fs"))
+(def mustache (cljs.nodejs/require "mustache"))
+
+(defn render-mustache [template-file m]
+  (.render mustache (fs.readFileSync template-file "utf-8") (clj->js m)))

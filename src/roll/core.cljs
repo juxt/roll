@@ -86,5 +86,5 @@
               [(resolve-path [service version "user-data"])
                {:template (str "${file(\"" roll-home "/tf/files/run-server.sh\")}")
                 :vars {:launch_command (when (:launch-command-fn opts) ((:launch-command-fn opts) service-m config))
-                       :release_file (when (:release-file-fn opts) ((:release-file-fn opts) service-m config))
+                       :release_artifact (when (:release-file-fn opts) ((:release-file-fn opts) service-m config))
                        :releases_bucket releases-bucket}}]))}}))

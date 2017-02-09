@@ -8,7 +8,7 @@ data "template_file" "kms_policy" {
   }
 }
 
-resource "aws_kms_key" "key" {
+resource "aws_kms_key" "default" {
   description = "Key"
   deletion_window_in_days = 20
   policy = "${data.template_file.kms_policy.rendered}"

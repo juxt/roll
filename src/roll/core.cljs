@@ -1,14 +1,25 @@
 (ns roll.core)
 
-(defn deployment->tf [deployment-file roll-home opts]
-  (let [{:keys [profile releases-bucket] :as config} (aero.core/read-config deployment-file {})
-        environment (str (:domain config) "-" (name profile))
+(defn resolve-path [{:keys [domain profile]} path]
+  (clojure.string/join "_"  (map name (concat [domain profile] path))))
 
-        ;; Define helper fns:
-        resolve-path (fn [path] (clojure.string/join "_"  (map name (concat [(:domain config) profile] path))))
-        module (fn [path module m] {(resolve-path path) (assoc m :source (str roll-home "/tf/modules/" (name module)))})
-        ref-module-var (fn [path var] (str "${module." (resolve-path path) "." var "}"))
-        render-template (fn [path] (str "${data.template_file." (resolve-path path) ".rendered}"))]
+(defn module [config roll-home path module m]
+  {(resolve-path config path) (assoc m :source (str roll-home "/tf/modules/" (name module)))})
+
+(defn ref-module-var [config path var]
+  (str "${module." (resolve-path config path) "." var "}"))
+
+(defn render-template [config path]
+  (str "${data.template_file." (resolve-path config path) ".rendered}"))
+
+(defn deployment->tf [{:keys [profile releases-bucket] :as config} roll-home opts]
+  (let [environment (str (:domain config) "-" (name profile))
+
+        ;; Redefine helper fns:
+        resolve-path (partial resolve-path config)
+        module (partial module config roll-home)
+        ref-module-var (partial ref-module-var config)
+        render-template (partial render-template config)]
     {:module
      (concat
       (for [{:keys [service version load-balancer] :as m} (:services config)]
@@ -85,6 +96,6 @@
             (for [{:keys [service version] :as service-m} (:services config)]
               [(resolve-path [service version "user-data"])
                {:template (str "${file(\"" roll-home "/tf/files/run-server.sh\")}")
-                :vars {:launch_command (when (:launch-command-fn opts) ((:launch-command-fn opts) service-m config))
-                       :release_artifact (when (:release-file-fn opts) ((:release-file-fn opts) service-m config))
+                :vars {:launch_command (when (:launch-command-fn opts) ((:launch-command-fn opts) service-m))
+                       :release_artifact (when (:release-file-fn opts) ((:release-file-fn opts) service-m))
                        :releases_bucket releases-bucket}}]))}}))

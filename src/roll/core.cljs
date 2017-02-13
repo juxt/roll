@@ -56,9 +56,9 @@
                           (merge {:environment (str environment "-" (name service) "-" version)
                                   :security-group-id (ref-module-var [service "security"] "id")
                                   :iam-instance-profile (ref-module-var [service "security"] "iam_instance_profile")
-                                  :user-data (render-template [service version "user_data"])}))
-                      (when load-balancer
-                        {:target_group_arns [(ref-module-var [load-balancer "alb"] "arn")]})))
+                                  :user-data (render-template [service version "user_data"])}
+                                 (when load-balancer
+                                   {:target_group_arns [(ref-module-var [load-balancer "alb"] "arn")]})))))
 
             ;; Create ALBs:
             (for [[balancer {:keys [listen forward protocol ssl-policy certificate-arn]}] (:load-balancers config)]

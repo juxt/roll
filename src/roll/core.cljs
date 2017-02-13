@@ -1,6 +1,7 @@
 (ns roll.core
   (:require [cljs.nodejs :as nodejs]
-            [clojure.string :as str]))
+            [clojure.string :as str]
+            [clojure.walk :refer [postwalk]]))
 
 (def child_process (cljs.nodejs/require "child_process"))
 (defn sh [args]
@@ -35,6 +36,19 @@
       (update-in [:asgs] (fn [asgs] (for [{:keys [release-artifact] :as asg} asgs]
                                       (if (= :latest release-artifact)
                                         (assoc asg :release-artifact (latest-artifact config)) asg))))))
+
+(defn ->json [m]
+  (js/JSON.stringify (clj->js m) nil 4))
+
+(defn ->tf-json
+  "Convert the map into Terraform styled JSON."
+  [m]
+  (->> m
+       (postwalk (fn [x]
+                   (if (map? x)
+                     (zipmap (map #(str/replace (name %) "-" "_") (keys x)) (vals x))
+                     x)))
+       ->json))
 
 (defn deployment->tf [{:keys [profile releases-bucket] :as config} roll-home opts]
   (let [environment (str (:domain config) "-" (name profile))
@@ -113,7 +127,7 @@
               [(resolve-path [service])
                {:name (str environment "-" (name service))
                 :role (ref-module-var [service "security"] "role_id")
-                :policy (mach.core/json
+                :policy (->json
                          {:Statement (concat [{:Effect "Allow"
                                                :Action ["s3:GetObject"]
                                                :Resource [(str "arn:aws:s3:::" releases-bucket "/*")]}]

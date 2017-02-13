@@ -13,3 +13,8 @@ resource "aws_kms_key" "default" {
   deletion_window_in_days = 20
   policy = "${data.template_file.kms_policy.rendered}"
 }
+
+resource "aws_kms_alias" "alias" {
+  name = "alias/${var.alias}"
+  target_key_id = "${aws_kms_key.default.key_id}"
+}

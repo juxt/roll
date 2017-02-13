@@ -1,5 +1,7 @@
 variable "root_arn" {}
 
+variable "alias" {}
+
 variable "admin_arns" {
   type = "list"
 }

@@ -99,7 +99,8 @@
                               (for [service (distinct (map :service (:services config)))]
                                 (ref-module-var [service "security"] "role_arn")))]
               [(module ["kms-key"] :kms
-                       {:root-arn (-> config :kms :root)
+                       {:alias environment
+                        :root-arn (-> config :kms :root)
                         :admin-arns (-> config :kms :admins)
                         :user-arns users
                         :attachment-arns users})])))

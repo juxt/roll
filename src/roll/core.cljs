@@ -66,7 +66,8 @@
             ;; Creating the bastion
             [(module ["bastion"] :bastion
                      {:environment environment
-                      :key-name (-> config :bastion :key-name)})]
+                      :key-name (-> config :bastion :key-name)
+                      :user-data (-> config :bastion :user-data)})]
 
             ;; Create the encryption key for this domain and allow each service to use it, including the bastion
             (let [users (cons (ref-module-var ["bastion"] "role_arn")

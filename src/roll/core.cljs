@@ -21,7 +21,9 @@
         module (partial module config roll-home)
         ref-module-var (partial ref-module-var config)
         render-template (partial render-template config)]
-    {:module
+    {:provider {"aws" {:profile (-> config :common :aws-profile)
+                       :region (-> config :common :aws-region)}}
+     :module
      (into {}
            (concat
             (for [{:keys [service version load-balancer] :as m} (:services config)]

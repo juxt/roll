@@ -32,9 +32,9 @@
 
 (defn preprocess [config]
   (-> config
-      (update-in [:services] (fn [services] (for [{:keys [release-artifact] :as s} services]
-                                              (if (= :latest release-artifact)
-                                                (assoc s :release-artifact (latest-artifact config)) s))))))
+      (update-in [:asgs] (fn [asgs] (for [{:keys [release-artifact] :as asg} asgs]
+                                      (if (= :latest release-artifact)
+                                        (assoc asg :release-artifact (latest-artifact config)) asg))))))
 
 (defn deployment->tf [{:keys [profile releases-bucket] :as config} roll-home opts]
   (let [environment (str (:domain config) "-" (name profile))
@@ -49,11 +49,11 @@
      :module
      (into {}
            (concat
-            (for [{:keys [service version load-balancer] :as m} (:services config)]
+            (for [{:keys [service version load-balancer] :as m} (:asgs config)]
               (module [service version] :asg
-                      (-> m
+                      (-> config :services service
                           (select-keys [:instance-count :instance-type :ami :key-name :availability-zones])
-                          (merge {:environment (str environment "-" service "-" version)
+                          (merge {:environment (str environment "-" (name service) "-" version)
                                   :security-group-id (ref-module-var [service "security"] "id")
                                   :iam-instance-profile (ref-module-var [service "security"] "iam_instance_profile")
                                   :user-data (render-template [service version "user_data"])}))
@@ -83,9 +83,9 @@
                        :target-zone-id (ref-module-var [load-balancer "alb"] "zone_id")}))
 
             ;; Create IAM role for each service
-            (for [service (distinct (map :service (:services config)))]
+            (for [service (keys (:services config))]
               (module [service "security"] :security
-                      {:environment (str environment "-" service)
+                      {:environment (str environment "-" (name service))
                        :port 8080}))
 
             ;; Creating the bastion
@@ -96,7 +96,7 @@
 
             ;; Create the encryption key for this domain and allow each service to use it, including the bastion
             (let [users (cons (ref-module-var ["bastion"] "role_arn")
-                              (for [service (distinct (map :service (:services config)))]
+                              (for [service (keys (:services config))]
                                 (ref-module-var [service "security"] "role_arn")))]
               [(module ["kms-key"] :kms
                        {:alias environment
@@ -106,23 +106,24 @@
                         :attachment-arns users})])))
 
      :resource
-     { ;;Every service we run needs access to S3 to fetch releases:
+     { ;;Every service we run needs access to S3 to fetch releases, plus additional policies:
       :aws-iam-role-policy
       (into {}
-            (for [{:keys [service]} (:services config)]
+            (for [[service {:keys [policies]}] (:services config)]
               [(resolve-path [service "s3_jars"])
-               {:name (str environment "-" service "-s3-jars")
+               {:name (str environment "-" (name service))
                 :role (ref-module-var [service "security"] "role_id")
                 :policy (mach.core/json
-                         {:Statement [{:Effect "Allow"
-                                       :Action ["s3:GetObject"]
-                                       :Resource [(str "arn:aws:s3:::" releases-bucket "/*")]}]})}]))}
+                         {:Statement (concat [{:Effect "Allow"
+                                               :Action ["s3:GetObject"]
+                                               :Resource [(str "arn:aws:s3:::" releases-bucket "/*")]}]
+                                             policies)})}]))}
 
      ;; Create run scripts for each service/version
      :data
      {:template-file
       (into {}
-            (for [{:keys [service version release-artifact launch-command]} (:services config)]
+            (for [{:keys [service version release-artifact launch-command]} (:asgs config)]
               [(resolve-path [service version "user-data"])
                {:template (str "${file(\"" roll-home "/tf/files/run-server.sh\")}")
                 :vars {:launch_command launch-command

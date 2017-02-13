@@ -26,14 +26,14 @@
            (concat
             (for [{:keys [service version load-balancer] :as m} (:services config)]
               (module [service version] :asg
-                      (merge
-                       (dissoc m :service :version :load-balancer)
-                       {:environment (str environment "-" service "-" version)
-                        :security-group-id (ref-module-var [service "security"] "id")
-                        :iam-instance-profile (ref-module-var [service "security"] "iam_instance_profile")
-                        :user-data (render-template [service version "user_data"])}
-                       (when load-balancer
-                         {:target_group_arns [(ref-module-var [load-balancer "alb"] "arn")]}))))
+                      (-> m
+                          (select-keys [:instance-count :instance-type :ami :key-name :availability-zones])
+                          (merge {:environment (str environment "-" service "-" version)
+                                  :security-group-id (ref-module-var [service "security"] "id")
+                                  :iam-instance-profile (ref-module-var [service "security"] "iam_instance_profile")
+                                  :user-data (render-template [service version "user_data"])}))
+                      (when load-balancer
+                        {:target_group_arns [(ref-module-var [load-balancer "alb"] "arn")]})))
 
             ;; Create ALBs:
             (for [[balancer {:keys [listen forward protocol ssl-policy certificate-arn]}] (:load-balancers config)]
@@ -95,11 +95,11 @@
      :data
      {:template-file
       (into {}
-            (for [{:keys [service version] :as service-m} (:services config)]
+            (for [{:keys [service version release-artifact launch-command]} (:services config)]
               [(resolve-path [service version "user-data"])
                {:template (str "${file(\"" roll-home "/tf/files/run-server.sh\")}")
-                :vars {:launch_command (when (:launch-command-fn opts) ((:launch-command-fn opts) service-m))
-                       :release_artifact (when (:release-file-fn opts) ((:release-file-fn opts) service-m))
+                :vars {:launch_command launch-command
+                       :release_artifact release-artifact
                        :releases_bucket releases-bucket}}]))}}))
 
 (def fs (nodejs/require "fs"))

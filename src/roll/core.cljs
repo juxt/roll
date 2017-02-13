@@ -1,3 +1,5 @@
+;; Copyright © 2016-2017, JUXT LTD.
+
 (ns roll.core
   (:require [cljs.nodejs :as nodejs]
             [clojure.string :as str]

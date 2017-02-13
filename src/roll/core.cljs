@@ -110,7 +110,7 @@
       :aws-iam-role-policy
       (into {}
             (for [[service {:keys [policies]}] (:services config)]
-              [(resolve-path [service "s3_jars"])
+              [(resolve-path [service])
                {:name (str environment "-" (name service))
                 :role (ref-module-var [service "security"] "role_id")
                 :policy (mach.core/json

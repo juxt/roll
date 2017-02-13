@@ -1,5 +1,22 @@
 (ns roll.core
-  (:require [cljs.nodejs :as nodejs]))
+  (:require [cljs.nodejs :as nodejs]
+            [clojure.string :as str]))
+
+(def child_process (cljs.nodejs/require "child_process"))
+(defn sh [args]
+  (let [result (.spawnSync child_process
+                           (first args)
+                           (clj->js (rest args))
+                           #js {"shell" true})]
+    (str (.-stdout result))))
+
+(defn- latest-artifact [config]
+  (->> (str/split (sh ["aws" "s3" "ls" (:releases-bucket config) "--profile" (-> config :common :aws-profile)]) "\n")
+       (map #(str/split % #"\s+"))
+       (sort-by (juxt first second))
+       last
+       last
+       str))
 
 (defn resolve-path [{:keys [domain profile]} path]
   (clojure.string/join "_"  (map name (concat [domain profile] path))))
@@ -12,6 +29,12 @@
 
 (defn render-template [config path]
   (str "${data.template_file." (resolve-path config path) ".rendered}"))
+
+(defn preprocess [config]
+  (-> config
+      (update-in [:services] (fn [services] (for [{:keys [release-artifact] :as s} services]
+                                              (if (= :latest release-artifact)
+                                                (assoc s :release-artifact (latest-artifact config)) s))))))
 
 (defn deployment->tf [{:keys [profile releases-bucket] :as config} roll-home opts]
   (let [environment (str (:domain config) "-" (name profile))

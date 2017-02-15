@@ -24,19 +24,12 @@
 (defn resolve-path [path]
   (clojure.string/join "_"  (map name path)))
 
-(def default-roll-home "node_modules/@juxt/roll")
-
-;; (defn module
-;;   ([path module m]
-;;    (module default-roll-home path module m))
-;;   ([roll-home path module m]
-;;    [(resolve-path path)
-;;     (assoc m :source (str roll-home "/tf/modules/" (name module)))]))
+(def roll-home "node_modules/@juxt/roll")
 
 (defn module
   [path module m]
   [(resolve-path path)
-   (assoc m :source (str default-roll-home "/tf/modules/" (name module)))])
+   (assoc m :source (str roll-home "/tf/modules/" (name module)))])
 
 (defn ref-module-var [path var]
   (str "${module." (resolve-path path) "." var "}"))
@@ -63,8 +56,8 @@
                      x)))
        ->json))
 
-(defn deployment->tf [{:keys [profile releases-bucket] :as config} roll-home opts]
-  (let [environment (str (:domain config) "-" (name profile))]
+(defn deployment->tf [{:keys [releases-bucket] :as config}]
+  (let [environment (str (:domain config) "-" (name (:profile config)))]
     {:provider {"aws" {:profile (-> config :common :aws-profile)
                        :region (-> config :common :aws-region)}}
      :module

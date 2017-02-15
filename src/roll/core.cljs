@@ -11,7 +11,46 @@
 ;; We take a releases bucket, this is used to fetch release-artifacts
 ;; for each EC2 node prior to launching the application
 (s/def ::releases-bucket string?)
-(s/def ::config (s/keys :req-un [::environment ::releases-bucket]))
+;; The vpc-id is required by AWS Auto Scaling Groups
+(s/def ::vpc-id string?)
+;; Subnets - required for Auto Scaling Groups. TODO can we fetch these?
+(s/def ::subnets (s/coll-of string? :kind vector?))
+
+;; Use for AWS provider
+(s/def :common/aws-profile string?)
+;; Use for AWS provider
+(s/def :common/aws-region string?)
+;; TODO flatten/remove common:
+(s/def ::common (s/keys :req-un [:common/aws-profile :common/aws-region]))
+
+;; KMS Root User Arn
+(s/def :kms/root string?)
+;; KMS Key administrators
+(s/def :kms/admins (s/coll-of string? :kind vector?))
+(s/def ::kms (s/keys :req-un [:kms/root :kms/admins]))
+
+(s/def :load-balancer/listen int?)
+(s/def :load-balancer/forward int?)
+(s/def :load-balancer/protocol #{"HTTP" "HTTPS"})
+(s/def :load-balancer/ssl-policy string?)
+(s/def :load-balancer/certificate-arn string?)
+(s/def ::load-balancer (s/keys :req-un [:load-balancer/listen
+                                        :load-balancer/forward
+                                        :load-balancer/protocol
+                                        :load-balancer/ssl-policy
+                                        :load-balancer/certificate-arn]))
+(s/def ::load-balancers (s/map-of keyword? ::load-balancer))
+
+(s/def :bastion/key-name string?)
+(s/def ::bastion (s/keys :req-un [:bastion/key-name]))
+
+(s/def ::config (s/keys :req-un [::environment
+                                 ::releases-bucket
+                                 ::vpc-id
+                                 ::subnets
+                                 ::kms
+                                 ::common
+                                 ::load-balancers]))
 
 (def child_process (cljs.nodejs/require "child_process"))
 (defn sh [args]

@@ -3,7 +3,15 @@
 (ns roll.core
   (:require [cljs.nodejs :as nodejs]
             [clojure.string :as str]
-            [clojure.walk :refer [postwalk]]))
+            [clojure.walk :refer [postwalk]]
+            [cljs.spec :as s]))
+
+;; The environment is used as a prefix to segregate all the named constructs in AWS
+(s/def ::environment string?)
+;; We take a releases bucket, this is used to fetch release-artifacts
+;; for each EC2 node prior to launching the application
+(s/def ::releases-bucket string?)
+(s/def ::config (s/keys :req-un [::environment ::releases-bucket]))
 
 (def child_process (cljs.nodejs/require "child_process"))
 (defn sh [args]
@@ -57,6 +65,9 @@
        ->json))
 
 (defn deployment->tf [{:keys [environment releases-bucket] :as config}]
+  (when (= ::s/invalid (s/conform ::config config))
+    (println (s/explain-data ::config config))
+    (throw (ex-info "Invalid input" (s/explain-data ::config config))))
   {:provider {"aws" {:profile (-> config :common :aws-profile)
                      :region (-> config :common :aws-region)}}
    :module

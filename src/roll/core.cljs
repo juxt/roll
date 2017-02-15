@@ -21,17 +21,28 @@
        last
        str))
 
-(defn resolve-path [{:keys [domain profile]} path]
-  (clojure.string/join "_"  (map name (concat [domain profile] path))))
+(defn resolve-path [path]
+  (clojure.string/join "_"  (map name path)))
 
-(defn module [config roll-home path module m]
-  [(resolve-path config path) (assoc m :source (str roll-home "/tf/modules/" (name module)))])
+(def default-roll-home "node_modules/@juxt/roll")
 
-(defn ref-module-var [config path var]
-  (str "${module." (resolve-path config path) "." var "}"))
+;; (defn module
+;;   ([path module m]
+;;    (module default-roll-home path module m))
+;;   ([roll-home path module m]
+;;    [(resolve-path path)
+;;     (assoc m :source (str roll-home "/tf/modules/" (name module)))]))
 
-(defn render-template [config path]
-  (str "${data.template_file." (resolve-path config path) ".rendered}"))
+(defn module
+  [path module m]
+  [(resolve-path path)
+   (assoc m :source (str default-roll-home "/tf/modules/" (name module)))])
+
+(defn ref-module-var [path var]
+  (str "${module." (resolve-path path) "." var "}"))
+
+(defn render-template [path]
+  (str "${data.template_file." (resolve-path path) ".rendered}"))
 
 (defn preprocess [config]
   (-> config
@@ -53,13 +64,7 @@
        ->json))
 
 (defn deployment->tf [{:keys [profile releases-bucket] :as config} roll-home opts]
-  (let [environment (str (:domain config) "-" (name profile))
-
-        ;; Redefine helper fns:
-        resolve-path (partial resolve-path config)
-        module (partial module config roll-home)
-        ref-module-var (partial ref-module-var config)
-        render-template (partial render-template config)]
+  (let [environment (str (:domain config) "-" (name profile))]
     {:provider {"aws" {:profile (-> config :common :aws-profile)
                        :region (-> config :common :aws-region)}}
      :module

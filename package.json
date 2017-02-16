@@ -1,6 +1,6 @@
 {
   "name": "@juxt/roll",
-  "version": "0.0.1",
+  "version": "0.0.2",
   "description": "Rolling Terraform releases",
   "main": "index.js",
   "directories": {

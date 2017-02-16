@@ -41,6 +41,34 @@
                                         :load-balancer/certificate-arn]))
 (s/def ::load-balancers (s/map-of keyword? ::load-balancer))
 
+(s/def :route-53-alias/name-prefix string?)
+(s/def :route-53-alias/zone-id string?)
+(s/def :route-53-alias/load-balancer keyword?)
+(s/def ::route-53-alias (s/keys :req-un [:route-53-alias/name-prefix
+                                        :route-53-alias/zone-id
+                                        :route-53-alias/load-balancer]))
+(s/def ::route-53-aliases (s/coll-of ::route-53-alias))
+
+(s/def :service/ami string?)
+(s/def :service/instance-type string?)
+(s/def :service/key-name string?)
+(s/def :service/instance-count int?)
+(s/def :service/availability-zones (s/coll-of string? :kind vector?))
+(s/def ::service (s/keys :req-un [:service/ami
+                                 :service/instance-type
+                                 :service/key-name
+                                 :service/instance-count
+                                 :service/availability-zones]))
+(s/def ::services (s/map-of keyword? ::service))
+
+(s/def :asg/service keyword?)
+(s/def :asg/release-artifact string?)
+(s/def :asg/version string?)
+(s/def :asg/load-balancer keyword?)
+(s/def ::asg (s/keys :req-un [:asg/service :asg/release-artifact :asg/version]
+                     :opt-un [:asg/load-balancer]))
+(s/def ::asgs (s/coll-of ::asg))
+
 (s/def :bastion/key-name string?)
 (s/def ::bastion (s/keys :req-un [:bastion/key-name]))
 
@@ -50,7 +78,10 @@
                                  ::subnets
                                  ::kms
                                  ::common
-                                 ::load-balancers]))
+                                 ::load-balancers
+                                 ::route-53-aliases
+                                 ::services
+                                 ::asgs]))
 
 (def child_process (cljs.nodejs/require "child_process"))
 (defn sh [args]

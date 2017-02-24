@@ -45,8 +45,8 @@
 (s/def :route-53-alias/zone-id string?)
 (s/def :route-53-alias/load-balancer keyword?)
 (s/def ::route-53-alias (s/keys :req-un [:route-53-alias/name-prefix
-                                        :route-53-alias/zone-id
-                                        :route-53-alias/load-balancer]))
+                                         :route-53-alias/zone-id
+                                         :route-53-alias/load-balancer]))
 (s/def ::route-53-aliases (s/coll-of ::route-53-alias))
 
 (s/def :service/ami string?)

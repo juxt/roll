@@ -41,12 +41,14 @@
                                         :load-balancer/certificate-arn]))
 (s/def ::load-balancers (s/map-of keyword? ::load-balancer))
 
+(s/def :route-53-alias/resource-name (s/and string? #(re-matches #"^(\w|-)+$" %)))
 (s/def :route-53-alias/name-prefix string?)
 (s/def :route-53-alias/zone-id string?)
 (s/def :route-53-alias/load-balancer keyword?)
 (s/def ::route-53-alias (s/keys :req-un [:route-53-alias/name-prefix
                                          :route-53-alias/zone-id
-                                         :route-53-alias/load-balancer]))
+                                         :route-53-alias/load-balancer]
+                                :opt-un [:route-53-alias/resource-name]))
 (s/def ::route-53-aliases (s/coll-of ::route-53-alias))
 
 (s/def :service/ami string?)
@@ -168,9 +170,9 @@
                      :certificate-arn certificate-arn}))
 
           ;; Create Alias Resource Record Sets
-          (for [{:keys [name-prefix zone-id load-balancer]} (:route-53-aliases config)
+          (for [{:keys [resource-name name-prefix zone-id load-balancer]} (:route-53-aliases config)
                 :let [_ (assert (get-in config [:load-balancers load-balancer]))]]
-            (module [name-prefix "route53_alias"] :route53record
+            (module [(or resource-name (str/replace name-prefix #"\." "_")) "route53_alias"] :route53record
                     {:name name-prefix
                      :zone-id zone-id
                      :target-dns-name (ref-module-var [load-balancer "alb"] "dns_name")

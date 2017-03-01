@@ -36,10 +36,10 @@
 (s/def :load-balancer/certificate-arn string?)
 (s/def ::load-balancer (s/keys :req-un [:load-balancer/listen
                                         :load-balancer/forward
-                                        :load-balancer/protocol
-                                        :load-balancer/ssl-policy
+                                        :load-balancer/protocol]
+                               :opt-un [:load-balancer/ssl-policy
                                         :load-balancer/certificate-arn]))
-(s/def ::load-balancers (s/map-of keyword? ::load-balancer))
+(s/def ::load-balancers (s/map-of keyword? (s/coll-of ::load-balancer)))
 
 (s/def :route-53-alias/resource-name (s/and string? #(re-matches #"^(\w|-)+$" %)))
 (s/def :route-53-alias/name-prefix string?)
@@ -154,20 +154,34 @@
                                 :iam-instance-profile (ref-module-var [service "security"] "iam_instance_profile")
                                 :user-data (render-template [service version "user_data"])}
                                (when load-balancer
-                                 {:target_group_arns [(ref-module-var [load-balancer "alb"] "arn")]})))))
+                                 {:target_group_arns [(ref-module-var [load-balancer "alb_target"] "arn")]})))))
 
           ;; Create ALBs:
-          (for [[balancer {:keys [listen forward protocol ssl-policy certificate-arn]}] (:load-balancers config)]
-            (module [balancer "alb"] :alb
-                    {:name (name balancer)
-                     :environment environment
-                     :vpc_id (:vpc-id config)
-                     :subnet_ids (:subnets config)
-                     :listen-port listen
-                     :forward-port forward
-                     :protocol protocol
-                     :ssl-policy ssl-policy
-                     :certificate-arn certificate-arn}))
+          (apply concat
+                 (for [[balancer listeners] (:load-balancers config)
+                       :let [listen-ports (map :listen listeners)]]
+                   (concat
+                     (for [port listen-ports]
+                       (module [balancer (str port) "alb_security_group"] :alb_security_group
+                               {:name (name balancer)
+                                :environment environment
+                                :listen_port port}))
+                     [(module [balancer "alb_target"] :alb_target
+                              {:name (name balancer)
+                               :environment environment
+                               :security_groups (map #(ref-module-var [balancer (str %) "alb_security_group"] "id") listen-ports)
+                               :vpc_id (:vpc-id config)
+                               :subnet_ids (:subnets config)})]
+                     (map-indexed
+                       (fn [i {:keys [listen forward protocol ssl-policy certificate-arn]}]
+                         (module [balancer (str i) "alb_front"] :alb_front
+                                 {:listen-port listen
+                                  :protocol protocol
+                                  :ssl-policy ssl-policy
+                                  :certificate-arn certificate-arn
+                                  :target_group_arn (ref-module-var [balancer "alb_target"] "arn")
+                                  :load_balancer_arn (ref-module-var [balancer "alb_target"] "load_balancer_arn")}))
+                       listeners))))
 
           ;; Create Alias Resource Record Sets
           (for [{:keys [resource-name name-prefix zone-id load-balancer]} (:route-53-aliases config)
@@ -175,8 +189,8 @@
             (module [(or resource-name (str/replace name-prefix #"\." "_")) "route53_alias"] :route53record
                     {:name name-prefix
                      :zone-id zone-id
-                     :target-dns-name (ref-module-var [load-balancer "alb"] "dns_name")
-                     :target-zone-id (ref-module-var [load-balancer "alb"] "zone_id")}))
+                     :target-dns-name (ref-module-var [load-balancer "alb_target"] "dns_name")
+                     :target-zone-id (ref-module-var [load-balancer "alb_target"] "zone_id")}))
 
           ;; Create IAM role for each service
           (for [service (keys (:services config))]

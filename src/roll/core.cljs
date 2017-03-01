@@ -17,7 +17,7 @@
 (s/def ::subnets (s/coll-of string? :kind vector?))
 
 ;; Use for AWS provider
-(s/def :common/aws-profile string?)
+(s/def :common/aws-profile (s/nilable string?))
 ;; Use for AWS provider
 (s/def :common/aws-region string?)
 ;; TODO flatten/remove common:

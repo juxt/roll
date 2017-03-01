@@ -189,7 +189,6 @@
           ;; Create Alias Resource Record Sets
           (for [{:keys [resource-name name-prefix zone-id load-balancer]} (:route-53-aliases config)
                 :let [_ (assert (get-in config [:load-balancers load-balancer]))]]
-            (println (or resource-name (str/replace name-prefix #"\." "_")))
             (module [(or resource-name (str/replace name-prefix #"\." "_")) "route53_alias"] :route53record
                     {:name name-prefix
                      :zone-id zone-id

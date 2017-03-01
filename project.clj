@@ -8,6 +8,5 @@
   :resource-paths ["tf"]
   :source-paths ["src"]
   :profiles {:dev {:dependencies [[org.clojure/clojure "1.8.0"]]}}
-  :plugins [[org.clojars.ride_on/lein-sha-version "0.3.0"]]
-  :sha {:manifest-header "Git-Sha"
-        :write-version? false})
+  :plugins [[shmish111/lein-git-version "1.0.17"]]
+  :git-version-root-ns "roll")

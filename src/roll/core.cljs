@@ -21,7 +21,8 @@
 ;; Use for AWS provider
 (s/def :common/aws-region string?)
 ;; TODO flatten/remove common:
-(s/def ::common (s/keys :req-un [:common/aws-profile :common/aws-region]))
+(s/def ::common (s/keys :req-un [:common/aws-region]
+                        :opt-un [:common/aws-profile]))
 
 ;; KMS Root User Arn
 (s/def :kms/root string?)
@@ -94,7 +95,9 @@
     (str (.-stdout result))))
 
 (defn- latest-artifact [config]
-  (->> (str/split (sh ["aws" "s3" "ls" (:releases-bucket config) "--profile" (-> config :common :aws-profile)]) "\n")
+  (->> (str/split (sh (vec (concat ["aws" "s3" "ls" (:releases-bucket config)]
+                                   (when (-> config :common :aws-profile)
+                                     ["--profile" (-> config :common :aws-profile)])))) "\n")
        (map #(str/split % #"\s+"))
        (sort-by (juxt first second))
        last
@@ -186,6 +189,7 @@
           ;; Create Alias Resource Record Sets
           (for [{:keys [resource-name name-prefix zone-id load-balancer]} (:route-53-aliases config)
                 :let [_ (assert (get-in config [:load-balancers load-balancer]))]]
+            (println (or resource-name (str/replace name-prefix #"\." "_")))
             (module [(or resource-name (str/replace name-prefix #"\." "_")) "route53_alias"] :route53record
                     {:name name-prefix
                      :zone-id zone-id

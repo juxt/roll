@@ -43,6 +43,21 @@
 (defn fmt [s & args]
   (apply #?(:clj format :cljs gstring/format) s args))
 
+(defn- expected-tf-asg-module [config]
+  ;; The AutoScaling Group and Launch Configuration for the service
+  (let [version (-> config :asgs first :version)]
+    [(fmt "foo-service_%s" version) {:source "node_modules/@juxt/roll/tf/modules/asg"
+                                     :ami (-> config :services :foo-service :ami)
+                                     :key-name  (-> config :services :foo-service :key-name)
+                                     :instance-type (-> config :services :foo-service :instance-type)
+                                     :instance-count (-> config :services :foo-service :instance-count)
+                                     :availability-zones (-> config :services :foo-service :availability-zones)
+                                     :security-group-id "${module.foo-service_security.id}"
+                                     :iam-instance-profile "${module.foo-service_security.iam_instance_profile}"
+                                     :user-data (fmt "${data.template_file.foo-service_%s_user_data.rendered}" version)
+                                     :environment (fmt "%s-foo-service-%s" (-> config :environment) version)
+                                     :target_group_arns ["${module.foo-service_alb_target.arn}"]}]))
+
 (deftest test-build-sample-terraform-deployment-config
   (let [config (sample-roll-config)
 
@@ -53,21 +68,7 @@
         expected-tf {:provider {"aws" {:profile nil
                                        :region "eu-west-1"}},
 
-                     :module { ;; The AutoScaling Group and Launch Configuration for the service
-                              (fmt "foo-service_%s" version)
-                              {:source "node_modules/@juxt/roll/tf/modules/asg"
-                               :ami (-> config :services :foo-service :ami)
-                               :key-name  (-> config :services :foo-service :key-name)
-                               :instance-type (-> config :services :foo-service :instance-type)
-                               :instance-count (-> config :services :foo-service :instance-count)
-                               :availability-zones (-> config :services :foo-service :availability-zones)
-                               :security-group-id "${module.foo-service_security.id}"
-                               :iam-instance-profile "${module.foo-service_security.iam_instance_profile}"
-                               :user-data (fmt "${data.template_file.foo-service_%s_user_data.rendered}" version)
-                               :environment (fmt "%s-foo-service-%s" (-> config :environment) version)
-                               :target_group_arns ["${module.foo-service_alb_target.arn}"]}
-
-                              ;; Security Group for ALB
+                     :module {;; Security Group for ALB
                               (fmt "foo-service_%s_alb_security_group" lb-port)
                               {:name "foo-service"
                                :environment (-> config :environment)
@@ -133,7 +134,7 @@
                                                     :release_artifact "ulHWBCuM62R79k7c82",
                                                     :releases_bucket "N33xQZ"}}}}}]
 
-    (let [actual-tf (roll.core/deployment->tf config)]
+    (let [actual-tf (-> config roll.core/deployment->tf)]
 
       (testing "Complete generation"
         ;; TODO do a full comparison
@@ -143,9 +144,9 @@
         (is (= (get-in expected-tf [:module "foo-service_security"])
                (get-in actual-tf [:module "foo-service_security"]))))
 
-      (testing "ASG per version"
-        (is (= (get-in expected-tf [:module (fmt "foo-service_%s" version)])
-               (get-in actual-tf [:module (fmt "foo-service_%s" version)]))))
+      (testing "Autoscaling group module for each service version"
+        (let [[k m] (expected-tf-asg-module config)]
+          (is (= m (-> config roll.core/deployment->tf :module (get k))))))
 
       (testing "ALB security group"
         (is (= (get-in expected-tf [:module (fmt "foo-service_%s_alb_security_group" lb-port)])

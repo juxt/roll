@@ -26,19 +26,26 @@
    :kms {:root (gen/generate (s/gen string?))
          :admins [(gen/generate (s/gen string?))]}
    :common {:aws-region "eu-west-1"}
-   :load-balancers {:foo-service [(gen/generate (s/gen :roll.core/load-balancer))]}
+   :load-balancers {:foo-service [(-> :roll.core/load-balancer
+                                      s/gen
+                                      gen/generate
+                                      (assoc :ssl-policy "ELBSecurityPolicy-2015-05"
+                                             :certificate-arn "arn:aws:acm:eu-west-1:123456789:certificate/AAAA"))]}
    ;; Todo enforce the alias points to an actual load-balancer, would be cool, is possible?:
    :route-53-aliases [(-> (s/gen :roll.core/route-53-alias)
                           (gen/generate)
                           (assoc :load-balancer :foo-service
                                  :name-prefix "foo")
-                          (dissoc :module-name))]
+                          (dissoc :resource-name))]
    :services {:foo-service (assoc (gen/generate (s/gen :roll.core/service))
                                   :availability-zones ["eu-west-1a" "eu-west-1b"])}
    :asgs [{:service :foo-service
            :load-balancer :foo-service
            :release-artifact (gen/generate (s/gen string?))
-           :version (gen/generate (s/gen string?))}]})
+           :version (gen/generate (s/gen string?))}]
+
+   :bastion {:key-name "some-key"
+             :user-data "some init user data for the bastion"}})
 
 (defn fmt [s & args]
   (apply #?(:clj format :cljs gstring/format) s args))
@@ -86,6 +93,16 @@
       :vpc_id (-> config :vpc-id)
       :subnet_ids (-> config :subnets)}]))
 
+(defn expected-alb-listener [config]
+  (let [lb-port (-> config :load-balancers :foo-service first :listen)]
+    ["foo-service_0_alb_front"
+     (merge (select-keys (-> config :load-balancers :foo-service first)
+                         [:ssl-policy :certificate-arn :protocol])
+            {:source "node_modules/@juxt/roll/tf/modules/alb_front"
+             :listen-port lb-port
+             :target_group_arn "${module.foo-service_alb_target.arn}"
+             :load_balancer_arn "${module.foo-service_alb_target.load_balancer_arn}"})]))
+
 (defn- expected-kms-key-for-environment [config]
   ;; KMS Key for the Service
   ["kms-key"
@@ -104,47 +121,37 @@
     :target-zone-id "${module.foo-service_alb_target.zone_id}"
     :source "node_modules/@juxt/roll/tf/modules/route53record"}],)
 
+(defn- expected-bastion-module [config]
+  ;; The Bastion, used for deployment purposes:
+  ["bastion"
+   {:source "node_modules/@juxt/roll/tf/modules/bastion"
+    :environment (-> config :environment)
+    :key-name (-> config :bastion :key-name)
+    :user-data (-> config :bastion :user-data)}])
+
 (deftest test-build-sample-terraform-deployment-config
-  (let [config (sample-roll-config)
+  (let [config (sample-roll-config)]
 
-        ;; Pull some useful stuff out:
-        version (-> config :asgs first :version)
-        lb-port (-> config :load-balancers :foo-service first :listen)
+    (testing "AWS Provider"
+      (is (= {"aws" {:profile nil
+                     :region "eu-west-1"}}
+             (-> config roll.core/deployment->tf :provider))))
 
-        expected-tf {:provider {"aws" {:profile nil
-                                       :region "eu-west-1"}},
+    (testing "Launch scripts for each Service"
+      (is (= {:template-file {(fmt "foo-service_%s_user-data" (-> config :asgs first :version))
+                              {:template "${file(\"node_modules/@juxt/roll/tf/files/run-server.sh\")}",
+                               :vars {:launch_command nil,
+                                      :release_artifact (-> config :asgs first :release-artifact)
+                                      :releases_bucket (-> config :releases-bucket)}}}}
+             (-> config roll.core/deployment->tf :data))))
 
-                     :module {
-                              ;; Application Load Balancer Listener
-                              "foo-service_0_alb_front"
-                              (merge (select-keys (-> config :load-balancers :foo-service first)
-                                                  [:ssl-policy :certificate-arn :protocol])
-                                     {:source "node_modules/@juxt/roll/tf/modules/alb_front"
-                                      :listen-port lb-port
-                                      :target_group_arn "${module.foo-service_alb_target.arn}"
-                                      :load_balancer_arn "${module.foo-service_alb_target.load_balancer_arn}"})
-
-                              ;; The Bastion, used for deployment purposes:
-                              "bastion"
-                              {:environment "TgGPnh3mDND"
-                               :key-name nil
-                               :user-data nil
-                               :source "node_modules/@juxt/roll/tf/modules/bastion"}}
-
-                     :resource {:aws-iam-role-policy {"foo-service"
-                                                      {:name "TgGPnh3mDND-foo-service"
-                                                       :role "${module.foo-service_security.role_id}"
-                                                       :policy "{\n    \"Statement\": [\n        {\n            \"Effect\": \"Allow\",\n            \"Action\": [\n                \"s3:GetObject\"\n            ],\n            \"Resource\": [\n                \"arn:aws:s3:::N33xQZ/*\"\n            ]\n        }\n    ]\n}"}}},
-
-                     :data {:template-file {"foo-service_z1k0gTi5Frq80k18Vax_user-data"
-                                            {:template "${file(\"node_modules/@juxt/roll/tf/files/run-server.sh\")}",
-                                             :vars {:launch_command nil,
-                                                    :release_artifact "ulHWBCuM62R79k7c82",
-                                                    :releases_bucket "N33xQZ"}}}}}]
-
-    (testing "Complete generation"
-      ;; TODO do a full comparison
-      )
+    (testing "IAM role for each service"
+      (is (= {:aws-iam-role-policy {"foo-service"
+                                    {:name (fmt "%s-foo-service" (-> config :environment))
+                                     :role "${module.foo-service_security.role_id}"
+                                     :policy (fmt "{\n    \"Statement\": [\n        {\n            \"Effect\": \"Allow\",\n            \"Action\": [\n                \"s3:GetObject\"\n            ],\n            \"Resource\": [\n                \"arn:aws:s3:::%s/*\"\n            ]\n        }\n    ]\n}"
+                                                  (-> config :releases-bucket))}}}
+             (-> config roll.core/deployment->tf :resource))))
 
     (testing "KMS for environment"
       (let [[k m] (expected-kms-key-for-environment config)]
@@ -166,10 +173,18 @@
       (let [[k m] (expected-alb-target config)]
         (is (= m (-> config roll.core/deployment->tf :module (get k))))))
 
-    ;; (testing "ALB listeners"
-    ;;   (is (= (get-in expected-tf [:module "foo-service_0_alb_front"])
-    ;;          (get-in actual-tf [:module "foo-service_0_alb_front"]))))
+    (testing "ALB listener")
+    (let [[k m] (expected-alb-listener config)]
+      (is (= m (-> config roll.core/deployment->tf :module (get k)))))
 
     (testing "Route 53 alias generation"
       (let [[k m] (expected-route-53-module config)]
-        (is (= m (-> config roll.core/deployment->tf :module (get k))))))))
+        (is (= m (-> config roll.core/deployment->tf :module (get k))))))
+
+    (testing "Bastion module"
+      (let [[k m] (expected-bastion-module config)]
+        (is (= m (-> config roll.core/deployment->tf :module (get k))))))
+
+    (testing "Complete generation"
+      ;; TODO do a full comparison
+      )))

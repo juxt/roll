@@ -73,7 +73,9 @@
 (s/def ::asgs (s/coll-of ::asg))
 
 (s/def :bastion/key-name string?)
-(s/def ::bastion (s/keys :req-un [:bastion/key-name]))
+(s/def :bastion/user-data string?)
+(s/def ::bastion (s/keys :req-un [:bastion/key-name]
+                         :opt-un [:bastion/user-data]))
 
 (s/def ::config (s/keys :req-un [::environment
                                  ::releases-bucket
@@ -84,7 +86,8 @@
                                  ::load-balancers
                                  ::route-53-aliases
                                  ::services
-                                 ::asgs]))
+                                 ::asgs]
+                        :opt-un [::bastion]))
 
 (def child_process (cljs.nodejs/require "child_process"))
 (defn sh [args]
@@ -202,10 +205,11 @@
                      :port 8080}))
 
           ;; Creating the bastion
-          [(module ["bastion"] :bastion
-                   {:environment environment
-                    :key-name (-> config :bastion :key-name)
-                    :user-data (-> config :bastion :user-data)})]
+          (when (:bastion config)
+            [(module ["bastion"] :bastion
+                     {:environment environment
+                      :key-name (-> config :bastion :key-name)
+                      :user-data (-> config :bastion :user-data)})])
 
           ;; Create the encryption key allow each service to use it, including the bastion
           (let [users (cons (ref-module-var ["bastion"] "role_arn")

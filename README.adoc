@@ -1,12 +1,16 @@
 = Roll - ClojureScript flavoured DevOps.
 
-Warning: Roll is in active development, everything about it - including this document - is being modified on a regular basis. That said read on to get a gist of what Roll is about.
+Warning: Roll is in active development, everything about it - including this document - is being modified on a regular basis. That said, please read on to get a gist of what Roll is about.
 
-Roll will provision you a AWS rolling blue/green infrastructure using Terraform, ClojureScript, Aero, Lumo. We suggest you use Roll in conjunction with https://github.com/juxt/mach[Mach] for triggering (Mach is your Make).
+Roll will provision you a Beanstalk like AWS rolling blue/green infrastructure using Terraform, ClojureScript, Aero and Lumo.
+
+To use Roll from the command line, we suggest you use it in conjunction with https://github.com/juxt/mach[Mach] (Mach is your Make).
 
 == Justification
 
-Why not just use a PaaS, and why would you bring all these technologies together? How can it help me? Let's justify the various pieces of Roll individually:
+Why not just use a PaaS, and why would you bring all these technologies together?
+
+Let's justify the various pieces of Roll individually:
 
 === To PaaS or not?
 
@@ -18,17 +22,19 @@ Almost straight away you will want to avoid the anti-pattern of configuring ever
 
 === Terraform
 
-So let's consider the 'Infrastructure as Code' options. In AWS we have a couple of choices, and the ones we've investigated heavily are CloudFormation and Terraform. There is https://www.terraform.io/intro/vs/cloudformation.html[lots of resources out there detailing why Terraform is superior to CloudFormation], but for us Terraform offers a friendlier DSL with comments (comments!), and where you can review pre-execution plans prior to Terraform making the declared written infrastructure plans a reality. In short, Terraform rocks.
+So let's consider the 'Infrastructure as Code' options. In AWS we have a couple of choices, and the ones we've investigated heavily are CloudFormation and Terraform. There is https://www.terraform.io/intro/vs/cloudformation.html[lots of resources out there detailing why Terraform is superior to CloudFormation], but for us Terraform offers a friendlier DSL with comments (comments!), and where you can review pre-execution plans prior to Terraform making the declared written infrastructure plans a reality.
+
+TL;DR; Terraform rocks.
 
 === ClojureScipt and Mach and Lumo
 
-So why doesn't the story stop there? Why brave friends must we continue into the lands of ClojureScript tooling running on the server?
+So why doesn't the story stop there? Why friends, must we continue into the lands of ClojureScript tooling running on the server?
 
-Alas, Terraform by itself is not enough. For example we want blue/green deployments - which in our use case involves firing up new AutoScaling groups when we want a new version deployed and to leave the old one running. When we're happy with our candidate deployment we want to effect a load-balancer change that redirects where the Route53 domain entry is pointing to, thus making the new AutoScaling group live. We may want to leave the previously 'live' AutoScaling group hanging around, in case we need to revert back to it.
+Alas, Terraform by itself is not enough. For example we want blue/green deployments - which in our use case involves firing up new AutoScaling groups when we want a new version deployed and to leave the old one running. When we're happy with our candidate deployment we want to effect a load-balancer change that will redirect where the Route53 domain entry is pointing to, thus making the new AutoScaling group the one that is live. We may want to leave the previously 'live' AutoScaling group hanging around - in case we need to revert back to it.
 
 Roll achieves this by rebuilding the Terraform configuration to match a higher level declarative input which you can readily change (i.e. to deploy newer versions of an application). Roll is a DSL that sits above Terraform, making tweaks and calling the shots.
 
-Roll aims to give you the full Beanstalk like PaaS experience except there's no PaaS and you're completely in control.
+Roll aims to give you the full Beanstalk like PaaS experience except there's no PaaS and you're completely in control. It also has extras such as setting up KMS for each 'service' and configuring your Area51 setup.
 
 == Road map
 

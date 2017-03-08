@@ -1,0 +1,3 @@
+#!/bin/sh
+
+lumo -c src:test -c test.check-0.9.0.jar -m roll.lumo-test

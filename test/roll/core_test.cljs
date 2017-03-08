@@ -129,28 +129,37 @@
     :key-name (-> config :bastion :key-name)
     :user-data (-> config :bastion :user-data)}])
 
+(defn- expected-resources-iam-role-policies [config]
+  {:aws-iam-role-policy {"foo-service"
+                         {:name (fmt "%s-foo-service" (-> config :environment))
+                          :role "${module.foo-service_security.role_id}"
+                          :policy (fmt "{\n    \"Statement\": [\n        {\n            \"Effect\": \"Allow\",\n            \"Action\": [\n                \"s3:GetObject\"\n            ],\n            \"Resource\": [\n                \"arn:aws:s3:::%s/*\"\n            ]\n        }\n    ]\n}"
+                                       (-> config :releases-bucket))}}})
+
+(defn- expected-data-launch-scripts [config]
+  {:template-file {(fmt "foo-service_%s_user-data" (-> config :asgs first :version))
+                   {:template "${file(\"node_modules/@juxt/roll/tf/files/run-server.sh\")}",
+                    :vars {:launch_command nil,
+                           :release_artifact (-> config :asgs first :release-artifact)
+                           :releases_bucket (-> config :releases-bucket)}}}})
+
+(defn- expected-provider-aws [config]
+  {"aws" {:profile nil
+          :region "eu-west-1"}})
+
 (deftest test-build-sample-terraform-deployment-config
   (let [config (sample-roll-config)]
 
     (testing "AWS Provider"
-      (is (= {"aws" {:profile nil
-                     :region "eu-west-1"}}
+      (is (= (expected-provider-aws config)
              (-> config roll.core/deployment->tf :provider))))
 
     (testing "Launch scripts for each Service"
-      (is (= {:template-file {(fmt "foo-service_%s_user-data" (-> config :asgs first :version))
-                              {:template "${file(\"node_modules/@juxt/roll/tf/files/run-server.sh\")}",
-                               :vars {:launch_command nil,
-                                      :release_artifact (-> config :asgs first :release-artifact)
-                                      :releases_bucket (-> config :releases-bucket)}}}}
+      (is (= (expected-data-launch-scripts config)
              (-> config roll.core/deployment->tf :data))))
 
     (testing "IAM role for each service"
-      (is (= {:aws-iam-role-policy {"foo-service"
-                                    {:name (fmt "%s-foo-service" (-> config :environment))
-                                     :role "${module.foo-service_security.role_id}"
-                                     :policy (fmt "{\n    \"Statement\": [\n        {\n            \"Effect\": \"Allow\",\n            \"Action\": [\n                \"s3:GetObject\"\n            ],\n            \"Resource\": [\n                \"arn:aws:s3:::%s/*\"\n            ]\n        }\n    ]\n}"
-                                                  (-> config :releases-bucket))}}}
+      (is (= (expected-resources-iam-role-policies config)
              (-> config roll.core/deployment->tf :resource))))
 
     (testing "KMS for environment"
@@ -185,6 +194,17 @@
       (let [[k m] (expected-bastion-module config)]
         (is (= m (-> config roll.core/deployment->tf :module (get k))))))
 
-    (testing "Complete generation"
-      ;; TODO do a full comparison
-      )))
+    (testing "Complete test"
+      (let [[k m] (expected-bastion-module config)]
+        (is (= {:data (expected-data-launch-scripts config)
+                :resource (expected-resources-iam-role-policies config)
+                :provider (expected-provider-aws config)
+                :module (into {} [(expected-kms-key-for-environment config)
+                                  (expected-service-security-module config)
+                                  (expected-tf-asg-module config)
+                                  (expected-alb-security-module config)
+                                  (expected-alb-target config)
+                                  (expected-alb-listener config)
+                                  (expected-route-53-module config)
+                                  (expected-bastion-module config)])}
+               (-> config roll.core/deployment->tf)))))))

@@ -46,17 +46,63 @@
 (defn- expected-tf-asg-module [config]
   ;; The AutoScaling Group and Launch Configuration for the service
   (let [version (-> config :asgs first :version)]
-    [(fmt "foo-service_%s" version) {:source "node_modules/@juxt/roll/tf/modules/asg"
-                                     :ami (-> config :services :foo-service :ami)
-                                     :key-name  (-> config :services :foo-service :key-name)
-                                     :instance-type (-> config :services :foo-service :instance-type)
-                                     :instance-count (-> config :services :foo-service :instance-count)
-                                     :availability-zones (-> config :services :foo-service :availability-zones)
-                                     :security-group-id "${module.foo-service_security.id}"
-                                     :iam-instance-profile "${module.foo-service_security.iam_instance_profile}"
-                                     :user-data (fmt "${data.template_file.foo-service_%s_user_data.rendered}" version)
-                                     :environment (fmt "%s-foo-service-%s" (-> config :environment) version)
-                                     :target_group_arns ["${module.foo-service_alb_target.arn}"]}]))
+    [(fmt "foo-service_%s" version)
+     {:source "node_modules/@juxt/roll/tf/modules/asg"
+      :ami (-> config :services :foo-service :ami)
+      :key-name  (-> config :services :foo-service :key-name)
+      :instance-type (-> config :services :foo-service :instance-type)
+      :instance-count (-> config :services :foo-service :instance-count)
+      :availability-zones (-> config :services :foo-service :availability-zones)
+      :security-group-id "${module.foo-service_security.id}"
+      :iam-instance-profile "${module.foo-service_security.iam_instance_profile}"
+      :user-data (fmt "${data.template_file.foo-service_%s_user_data.rendered}" version)
+      :environment (fmt "%s-foo-service-%s" (-> config :environment) version)
+      :target_group_arns ["${module.foo-service_alb_target.arn}"]}]))
+
+(defn- expected-service-security-module [config]
+  ;; Security for ASG
+  ["foo-service_security"
+   {:environment (fmt "%s-foo-service" (-> config :environment)),
+    :port 8080,
+    :source "node_modules/@juxt/roll/tf/modules/security"}])
+
+(defn- expected-alb-security-module [config]
+  ;; Security Group for ALB
+  (let [lb-port (-> config :load-balancers :foo-service first :listen)]
+    [(fmt "foo-service_%s_alb_security_group" lb-port)
+     {:name "foo-service"
+      :environment (-> config :environment)
+      :listen_port lb-port
+      :source "node_modules/@juxt/roll/tf/modules/alb_security_group"}]))
+
+(defn expected-alb-target [config]
+  ;; Application Load Balancer and Target Group:
+  (let [lb-port (-> config :load-balancers :foo-service first :listen)]
+    ["foo-service_alb_target"
+     {:source "node_modules/@juxt/roll/tf/modules/alb_target"
+      :name "foo-service"
+      :environment (-> config :environment)
+      :security_groups [(fmt "${module.foo-service_%s_alb_security_group.id}" lb-port)]
+      :vpc_id (-> config :vpc-id)
+      :subnet_ids (-> config :subnets)}]))
+
+(defn- expected-kms-key-for-environment [config]
+  ;; KMS Key for the Service
+  ["kms-key"
+   {:alias (-> config :environment)
+    :root-arn (-> config :kms :root)
+    :admin-arns (-> config :kms :admins)
+    :user-arns ["${module.bastion.role_arn}" "${module.foo-service_security.role_arn}"]
+    :attachment-arns ["${module.bastion.role_arn}" "${module.foo-service_security.role_arn}"]
+    :source "node_modules/@juxt/roll/tf/modules/kms"}])
+
+(defn- expected-route-53-module [config]
+  [(fmt "%s_route53_alias" (-> config :route-53-aliases first :name-prefix))
+   {:name (-> config :route-53-aliases first :name-prefix)
+    :zone-id (-> config :route-53-aliases first :zone-id)
+    :target-dns-name "${module.foo-service_alb_target.dns_name}"
+    :target-zone-id "${module.foo-service_alb_target.zone_id}"
+    :source "node_modules/@juxt/roll/tf/modules/route53record"}],)
 
 (deftest test-build-sample-terraform-deployment-config
   (let [config (sample-roll-config)
@@ -68,22 +114,7 @@
         expected-tf {:provider {"aws" {:profile nil
                                        :region "eu-west-1"}},
 
-                     :module {;; Security Group for ALB
-                              (fmt "foo-service_%s_alb_security_group" lb-port)
-                              {:name "foo-service"
-                               :environment (-> config :environment)
-                               :listen_port lb-port
-                               :source "node_modules/@juxt/roll/tf/modules/alb_security_group"}
-
-                              ;; Application Load Balancer and Target Group:
-                              "foo-service_alb_target"
-                              {:source "node_modules/@juxt/roll/tf/modules/alb_target"
-                               :name "foo-service"
-                               :environment (-> config :environment)
-                               :security_groups [(fmt "${module.foo-service_%s_alb_security_group.id}" lb-port)]
-                               :vpc_id (-> config :vpc-id)
-                               :subnet_ids (-> config :subnets)}
-
+                     :module {
                               ;; Application Load Balancer Listener
                               "foo-service_0_alb_front"
                               (merge (select-keys (-> config :load-balancers :foo-service first)
@@ -93,35 +124,12 @@
                                       :target_group_arn "${module.foo-service_alb_target.arn}"
                                       :load_balancer_arn "${module.foo-service_alb_target.load_balancer_arn}"})
 
-                              ;; Route 53 Alias:
-                              (fmt "%s_route53_alias" (-> config :route-53-aliases first :name-prefix))
-                              {:name (-> config :route-53-aliases first :name-prefix)
-                               :zone-id (-> config :route-53-aliases first :zone-id)
-                               :target-dns-name "${module.foo-service_alb_target.dns_name}"
-                               :target-zone-id "${module.foo-service_alb_target.zone_id}"
-                               :source "node_modules/@juxt/roll/tf/modules/route53record"},
-
-                              ;; Security for ASG
-                              "foo-service_security"
-                              {:environment (fmt "%s-foo-service" (-> config :environment)),
-                               :port 8080,
-                               :source "node_modules/@juxt/roll/tf/modules/security"}
-
                               ;; The Bastion, used for deployment purposes:
                               "bastion"
                               {:environment "TgGPnh3mDND"
                                :key-name nil
                                :user-data nil
-                               :source "node_modules/@juxt/roll/tf/modules/bastion"}
-
-                              ;; KMS Key for the Service
-                              "kms-key"
-                              {:alias "TgGPnh3mDND"
-                               :root-arn "o2D2ZcwfPrK3al8ZR06w"
-                               :admin-arns ["q091pCsG73F6xvHvvT"]
-                               :user-arns '("${module.bastion.role_arn}" "${module.foo-service_security.role_arn}")
-                               :attachment-arns '("${module.bastion.role_arn}" "${module.foo-service_security.role_arn}")
-                               :source "node_modules/@juxt/roll/tf/modules/kms"}}
+                               :source "node_modules/@juxt/roll/tf/modules/bastion"}}
 
                      :resource {:aws-iam-role-policy {"foo-service"
                                                       {:name "TgGPnh3mDND-foo-service"
@@ -134,33 +142,34 @@
                                                     :release_artifact "ulHWBCuM62R79k7c82",
                                                     :releases_bucket "N33xQZ"}}}}}]
 
-    (let [actual-tf (-> config roll.core/deployment->tf)]
+    (testing "Complete generation"
+      ;; TODO do a full comparison
+      )
 
-      (testing "Complete generation"
-        ;; TODO do a full comparison
-        )
+    (testing "KMS for environment"
+      (let [[k m] (expected-kms-key-for-environment config)]
+        (is (= m (-> config roll.core/deployment->tf :module (get k))))))
 
-      (testing "ASG service security"
-        (is (= (get-in expected-tf [:module "foo-service_security"])
-               (get-in actual-tf [:module "foo-service_security"]))))
+    (testing "ASG service security"
+      (let [[k m] (expected-service-security-module config)]
+        (is (= m (-> config roll.core/deployment->tf :module (get k))))))
 
-      (testing "Autoscaling group module for each service version"
-        (let [[k m] (expected-tf-asg-module config)]
-          (is (= m (-> config roll.core/deployment->tf :module (get k))))))
+    (testing "Autoscaling group module for each service version"
+      (let [[k m] (expected-tf-asg-module config)]
+        (is (= m (-> config roll.core/deployment->tf :module (get k))))))
 
-      (testing "ALB security group"
-        (is (= (get-in expected-tf [:module (fmt "foo-service_%s_alb_security_group" lb-port)])
-               (get-in actual-tf [:module (fmt "foo-service_%s_alb_security_group" lb-port)]))))
+    (testing "ALB security group"
+      (let [[k m] (expected-alb-security-module config)]
+        (is (= m (-> config roll.core/deployment->tf :module (get k))))))
 
-      (testing "ALB and target group"
-        (is (= (get-in expected-tf [:module "foo-service_alb_target"])
-               (get-in actual-tf [:module "foo-service_alb_target"]))))
+    (testing "ALB and target group"
+      (let [[k m] (expected-alb-target config)]
+        (is (= m (-> config roll.core/deployment->tf :module (get k))))))
 
-      ;; (testing "ALB listeners"
-      ;;   (is (= (get-in expected-tf [:module "foo-service_0_alb_front"])
-      ;;          (get-in actual-tf [:module "foo-service_0_alb_front"]))))
+    ;; (testing "ALB listeners"
+    ;;   (is (= (get-in expected-tf [:module "foo-service_0_alb_front"])
+    ;;          (get-in actual-tf [:module "foo-service_0_alb_front"]))))
 
-      (testing "Route 53 alias generation "
-        (let [module-name (fmt "%s_route53_alias" (-> config :route-53-aliases first :name-prefix))]
-          (is (= (get-in expected-tf [:module module-name])
-                 (get-in actual-tf [:module module-name]))))))))
+    (testing "Route 53 alias generation"
+      (let [[k m] (expected-route-53-module config)]
+        (is (= m (-> config roll.core/deployment->tf :module (get k))))))))

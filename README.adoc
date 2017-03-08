@@ -1,7 +1,34 @@
-= Roll
+= Roll - ClojureScript flavoured DevOps.
 
-An AWS rolling blue/green infrastructure provisioned using Terraform, configured using ClojureScript, Mach, and Lumo.
+Warning: Roll is in active development, everything about it - including this document - is being modified on a regular basis. That said read on to get a gist of what Roll is about.
 
+Roll will provision you a AWS rolling blue/green infrastructure using Terraform, ClojureScript, Aero, Lumo. We suggest you use Roll in conjunction with https://github.com/juxt/mach[Mach] for triggering (Mach is your Make).
+
+== Justification
+
+Why not just use a PaaS, and why would you bring all these technologies together? How can it help me? Let's justify the various pieces of Roll individually:
+
+=== To PaaS or not?
+
+Using a PaaS (Platform as a Service) such as AWS Beanstalk is a great way to get started and https://juxt.pro/blog/posts/beanstalk.html[we've blogged about deploying Clojure apps to Beanstalk using Docker].
+
+Sometimes though a PaaS will not do enough for you, and you will want finer grained control. Unfortunately as soon as you step outside the safe and comfortable confines of the PaaS, you will end up battling low level cloud constructs such as AutoScaling Groups, Launch Configurations, Security Groups etc.
+
+Almost straight away you will want to avoid the anti-pattern of configuring everything via point and click in the cloud provider UI, and you will seek to move towards Infrastructure as Code. Infrastructure as code means the infrastructure can be version controlled, and you won't get into the messy situation of forgetting who provisioned what, when and why.
+
+=== Terraform
+
+So let's consider the 'Infrastructure as Code' options. In AWS we have a couple of choices, and the ones we've investigated heavily are CloudFormation and Terraform. There is https://www.terraform.io/intro/vs/cloudformation.html[lots of resources out there detailing why Terraform is superior to CloudFormation], but for us Terraform offers a friendlier DSL with comments (comments!), and where you can review pre-execution plans prior to Terraform making the declared written infrastructure plans a reality. In short, Terraform rocks.
+
+=== ClojureScipt and Mach and Lumo
+
+So why doesn't the story stop there? Why brave friends must we continue into the lands of ClojureScript tooling running on the server?
+
+Alas, Terraform by itself is not enough. For example we want blue/green deployments - which in our use case involves firing up new AutoScaling groups when we want a new version deployed and to leave the old one running. When we're happy with our candidate deployment we want to effect a load-balancer change that redirects where the Route53 domain entry is pointing to, thus making the new AutoScaling group live. We may want to leave the previously 'live' AutoScaling group hanging around, in case we need to revert back to it.
+
+Roll achieves this by rebuilding the Terraform configuration to match a higher level declarative input which you can readily change (i.e. to deploy newer versions of an application). Roll is a DSL that sits above Terraform, making tweaks and calling the shots.
+
+Roll aims to give you the full Beanstalk like PaaS experience except there's no PaaS and you're completely in control.
 
 == Road map
 

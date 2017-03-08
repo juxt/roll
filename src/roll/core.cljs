@@ -30,7 +30,7 @@
 (s/def :kms/admins (s/coll-of string? :kind vector?))
 (s/def ::kms (s/keys :req-un [:kms/root :kms/admins]))
 
-(s/def :load-balancer/listen int?)
+(s/def :load-balancer/listen (s/int-in 1 65536))
 (s/def :load-balancer/forward int?)
 (s/def :load-balancer/protocol #{"HTTP" "HTTPS"})
 (s/def :load-balancer/ssl-policy string?)

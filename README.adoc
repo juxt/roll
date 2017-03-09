@@ -38,21 +38,27 @@ Roll has three stages, allowing you to hook in and manipulate the input/output d
 
 1) Pre-process.
 
-Roll will preprocess the Roll configuration you give it. The main example is that Roll can derive the most recent application version for you based on the contents of the S3 releases bucket, so you don't have to hardcode the application version manually.
+Roll will preprocess the Roll configuration you give it. An example of pre-processing Roll deriving the most recent application version based on the contents of the S3 releases bucket, so you don't have to hardcode the application version manually.
 
-2) Create TF data-structure
+After the pre-processing step you can hook and it manipulate the data-structure as you wish.
+
+2) Create TF data-structure.
+
+Before handing you Terraform JSON, you can operate on the Terraform Clojure data structure directly, to add additional Terraform configuration if you wish or to simple manipulate what Roll has come up with.
 
 3) Create final TF JSON output
+
+This the final stage, producing Terraform JSON that is ready for Terraform to work with, to provision the infrastructure.
 
 === Compatible with Aero
 
 We recommend that https://github.com/juxt/aero[Aero] be used to house the Roll configuration, to give you benefits such as be able to have references across the configuration, to pull out the pieces of commonality (to have for example, a reusable load-balancer configuration).
 
-TODO Advganes of Aero, munging before and after.
-
 == Usage
 
-To use Roll from the command line, we suggest you use it in conjunction with https://github.com/juxt/mach[Mach] (Mach is your Make). TODO document this.
+To use Roll from the command line, we suggest you use it in conjunction with https://github.com/juxt/mach[Mach] (Mach is your Make).
+
+Details on Mach integration will be added soon.
 
 == Justification
 

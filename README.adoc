@@ -1,12 +1,12 @@
 = Roll - ClojureScript flavoured DevOps.
 
-Roll is about the deployment of application services, providing an opinionated description of what services will commonly need. Roll will provision you a secure Beanstalk like AWS rolling blue/green infrastructure using Terraform, ClojureScript, Aero and Lumo.
+Roll is about the deployment of application services, providing an opinionated description of what services will commonly need in a given environment. Roll will provision you a secure PaaS (platform as a service) like AWS rolling blue/green infrastructure using Terraform, ClojureScript and Lumo.
 
-Roll operates on a per environment basis, so you have a different Roll coniguration data structure (an EDN file) per environment.
+Roll operates on a per environment basis, so you can have a dedicated Roll configuration file per environment. Roll also just works against Clojure maps, so you all the flexibility of how you derive the configuration before passing it to Roll.
 
-Roll assumes that deployable application versions are accessible in S3, and you get to provide the start-up instructions. Therefore it's orthogonal to whether you like to use Uberjars, Docker containers, or whatever else.
+Roll assumes that deployable application versions are accessible in S3, and you get to provide the start-up instructions. Therefore it's orthogonal to whether you want to use Uberjars, Docker containers, or whatever else.
 
-Warning: Roll is in active development, everything about it - including this document - is being modified on a regular basis.
+WARNING: Warning: Roll is in active development, everything about it - including this document - is being modified on a regular basis.
 
 == Features
 
@@ -36,17 +36,15 @@ Roll takes in a Clojure map as the main argument and will give you a clojrue map
 
 Roll has three stages, allowing you to hook in and manipulate the input/output data-structures for your own needs.
 
-1) Pre-process.
+==== 1) Pre-process the Roll config.
 
-Roll will preprocess the Roll configuration you give it. An example of pre-processing Roll deriving the most recent application version based on the contents of the S3 releases bucket, so you don't have to hardcode the application version manually.
+Roll will preprocess the Roll configuration you give it. An example of pre-processing Roll deriving the most recent application version based on the contents of the S3 releases bucket, so you don't have to hardcode the application version manually. After the pre-processing step you can hook and it manipulate the data-structure as you wish.
 
-After the pre-processing step you can hook and it manipulate the data-structure as you wish.
-
-2) Create TF data-structure.
+==== 2 Create the Terraform data structure.
 
 Before handing you Terraform JSON, you can operate on the Terraform Clojure data structure directly, to add additional Terraform configuration if you wish or to simple manipulate what Roll has come up with.
 
-3) Create final TF JSON output
+==== 3) Create final TF JSON output
 
 This the final stage, producing Terraform JSON that is ready for Terraform to work with, to provision the infrastructure.
 

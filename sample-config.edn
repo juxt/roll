@@ -1,0 +1,46 @@
+;; TODO unit test should check the schema of this sample, to always ensure it's up to date
+;; TODO add all optional fields
+
+{;; Environment is used to prefix the names of cloud constructs, to avoid name clashing
+ :environment "staging-env"
+
+ ;; The id of the AWS VPC
+ :vpc-id "Jcr3y5tSMc90fEhMb3U36ZOxQF"
+
+ :subnets ["subnet1" "subnet2"]
+ :common {:aws-region "eu-west-1"}
+
+ ;; TODO change keys to have ARN in them
+ :kms {:root "ewW5I3r27"
+       :admins ["UF0"]}
+
+ ;; Roll will pull down release artifacts from this bucket and install them on the instances
+ :releases-bucket "957IlX61a2owfjSNDnz7"
+
+ ;; These configure AWS application load balancers (ALBs)
+ :load-balancers {:foo-service [{:listen 443
+                                 :forward 8080
+                                 :protocol "HTTP"
+                                 :ssl-policy "ELBSecurityPolicy-2015-05"
+                                 :certificate-arn "arn:aws:acm:eu-west-1:123456789:certificate/AAAA"}]},
+
+ ;; Route-53 aliases, pointing to the load-balancer
+ :route-53-aliases [{:name-prefix "foo"
+                     :zone-id "QQ",
+                     :load-balancer :foo-service}]
+
+ ;; Service definitions
+ :services {:foo-service {:ami "RZr9WWrHIS"
+                          :instance-type "MM3rF"
+                          :key-name "ECujWD76I0xIym62TD"
+                          :instance-count 7
+                          :availability-zones ["eu-west-1a" "eu-west-1b"]}}
+
+ ;; The auto scaling groups (ASGs)
+ :asgs [{:service :foo-service
+         :load-balancer :foo-service
+         :release-artifact "wD54GQ9PaY34Vd6B9Ley4"
+         :version "r6se6Lit85T3W7H14m1cy2"}]
+
+ :bastion {:key-name "some-key"
+           :user-data "some init user data for the bastion"}}

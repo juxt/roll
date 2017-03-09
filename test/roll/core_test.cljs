@@ -1,11 +1,13 @@
 (ns roll.core-test
   #?(:clj (:require [roll.core]
+                    [roll.samples :refer [generate-roll-config]]
                     [clojure.test.check.generators :as gen]
                     [clojure.spec :as s]
                     [clojure.edn :as edn]
                     [clojure.test :refer :all]
                     [clojure.java.io :as io]))
   #?(:cljs (:require [roll.core]
+                     [roll.samples :refer [generate-roll-config]]
                      [clojure.test.check.generators :as gen]
                      [clojure.spec :as s]
                      [cljs.tools.reader :as edn]
@@ -17,35 +19,6 @@
 ;; TODO document Roll takes an application service level view of the world. What does a typical application service need? DNS, KMS, ASG. Iterate and go through them.
 ;; TODO document the modules that Roll comes with
 ;; TODO add generate sample to lumo, splits out to a file, pretty printed. show all the generated TF
-
-(defn- sample-roll-config []
-  {:environment (gen/generate (s/gen :roll.core/environment))
-   :releases-bucket (gen/generate (s/gen :roll.core/releases-bucket))
-   :vpc-id (gen/generate (s/gen :roll.core/vpc-id))
-   :subnets ["subnet1" "subnet2"]
-   :kms {:root (gen/generate (s/gen string?))
-         :admins [(gen/generate (s/gen string?))]}
-   :common {:aws-region "eu-west-1"}
-   :load-balancers {:foo-service [(-> :roll.core/load-balancer
-                                      s/gen
-                                      gen/generate
-                                      (assoc :ssl-policy "ELBSecurityPolicy-2015-05"
-                                             :certificate-arn "arn:aws:acm:eu-west-1:123456789:certificate/AAAA"))]}
-   ;; Todo enforce the alias points to an actual load-balancer, would be cool, is possible?:
-   :route-53-aliases [(-> (s/gen :roll.core/route-53-alias)
-                          (gen/generate)
-                          (assoc :load-balancer :foo-service
-                                 :name-prefix "foo")
-                          (dissoc :resource-name))]
-   :services {:foo-service (assoc (gen/generate (s/gen :roll.core/service))
-                                  :availability-zones ["eu-west-1a" "eu-west-1b"])}
-   :asgs [{:service :foo-service
-           :load-balancer :foo-service
-           :release-artifact (gen/generate (s/gen string?))
-           :version (gen/generate (s/gen string?))}]
-
-   :bastion {:key-name "some-key"
-             :user-data "some init user data for the bastion"}})
 
 (defn fmt [s & args]
   (apply #?(:clj format :cljs gstring/format) s args))
@@ -148,7 +121,7 @@
           :region "eu-west-1"}})
 
 (deftest test-build-sample-terraform-deployment-config
-  (let [config (sample-roll-config)]
+  (let [config (generate-roll-config)]
 
     (testing "AWS Provider"
       (is (= (expected-provider-aws config)

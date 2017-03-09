@@ -1,10 +1,58 @@
 = Roll - ClojureScript flavoured DevOps.
 
-Warning: Roll is in active development, everything about it - including this document - is being modified on a regular basis. That said, please read on to get a gist of what Roll is about.
+Roll is about the deployment of application services, providing an opinionated description of what services will commonly need. Roll will provision you a secure Beanstalk like AWS rolling blue/green infrastructure using Terraform, ClojureScript, Aero and Lumo.
 
-Roll will provision you a Beanstalk like AWS rolling blue/green infrastructure using Terraform, ClojureScript, Aero and Lumo.
+Roll operates on a per environment basis, so you have a different Roll coniguration data structure (an EDN file) per environment.
 
-To use Roll from the command line, we suggest you use it in conjunction with https://github.com/juxt/mach[Mach] (Mach is your Make).
+Roll assumes that deployable application versions are accessible in S3, and you get to provide the start-up instructions. Therefore it's orthogonal to whether you like to use Uberjars, Docker containers, or whatever else.
+
+Warning: Roll is in active development, everything about it - including this document - is being modified on a regular basis.
+
+== Features
+
+=== Blue/Green deploy using AutoScaling groups
+
+For each deployed version of an application, Roll uses a different AutoScaling group. These ASGs sit behind a load-balancer (Application Load Balancer) that we use to determine which ASG is 'live' at any given point.
+
+The approach has significant advantages in that multiple application versions can be kept running at any given point, providing you flexibility on when you want to make a specific application version live, and to provide the ability to roll back quickly.
+
+=== Route 53
+
+Roll builds up a Terraform configuration so that you can easily point a Route 53 alias towards the load-balancer, that sits in front of the ASGs.
+
+You need to manually configure the hosted zone (i.e. xxx.cloud), but with Roll you then can automatically provision the sub-aliases (i.e. yyy.xxx.cloud) and route them accordingly.
+
+Roll works well when each service has it's own alias sitting inside the hosted zone.
+
+=== Security and Key Management
+
+Roll is opinionated in that each environment should have it's own KMS Encryption Key. Each provisioned service is then automatically configured to have decryption access to the key.
+
+Using KMS Encryption keys is a great way of handling sensitive application configuration secrets (encrypted secrets can be kept in plain text, and only decrypted by the running application service).
+
+=== It's just data
+
+Roll takes in a Clojure map as the main argument and will give you a clojrue map bacl, see the sample (for an example of this).
+
+Roll has three stages, allowing you to hook in and manipulate the input/output data-structures for your own needs.
+
+1) Pre-process.
+
+Roll will preprocess the Roll configuration you give it. The main example is that Roll can derive the most recent application version for you based on the contents of the S3 releases bucket, so you don't have to hardcode the application version manually.
+
+2) Create TF data-structure
+
+3) Create final TF JSON output
+
+=== Compatible with Aero
+
+We recommend that https://github.com/juxt/aero[Aero] be used to house the Roll configuration, to give you benefits such as be able to have references across the configuration, to pull out the pieces of commonality (to have for example, a reusable load-balancer configuration).
+
+TODO Advganes of Aero, munging before and after.
+
+== Usage
+
+To use Roll from the command line, we suggest you use it in conjunction with https://github.com/juxt/mach[Mach] (Mach is your Make). TODO document this.
 
 == Justification
 
@@ -32,7 +80,7 @@ So why doesn't the story stop there? Why friends, must we continue into the land
 
 Alas, Terraform by itself is not enough. For example we want blue/green deployments - which in our use case involves firing up new AutoScaling groups when we want a new version deployed and to leave the old one running. When we're happy with our candidate deployment we want to effect a load-balancer change that will redirect where the Route53 domain entry is pointing to, thus making the new AutoScaling group the one that is live. We may want to leave the previously 'live' AutoScaling group hanging around - in case we need to revert back to it.
 
-Roll achieves this by rebuilding the Terraform configuration to match a higher level declarative input which you can readily change (i.e. to deploy newer versions of an application). Roll is a DSL that sits above Terraform, making tweaks and calling the shots.
+Roll achieves this by rebuilding the Terraform configuration to match a higher level declarative input which you can readily change (i.e. to deploy newer versions of an application). Roll is a DSL that sits above Terraform, providing an opinionated description of infrastructure that Terraform is used to make happen.
 
 Roll aims to give you the full Beanstalk like PaaS experience except there's no PaaS and you're completely in control. It also has extras such as setting up KMS for each 'service' and configuring your Area51 setup.
 

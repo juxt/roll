@@ -1,12 +1,12 @@
 = Roll - ClojureScript flavoured DevOps.
 
-Very simply: Roll will build you a Terraform template that you can then use with Terraform to provision you can an AWS application environment.
+Very simply: Roll will build you a Terraform template that you can then use with Terraform to provision you an AWS application environment.
 
 Roll is about the deployment of application services, providing an opinionated description of what services will commonly need in a given environment. Roll will help provision you a secure PaaS (platform as a service) like AWS rolling blue/green infrastructure using Terraform, ClojureScript and Lumo.
 
-Roll operates on a per environment basis, so you can have a dedicated Roll configuration file per environment. Roll also just works against Clojure maps, so you all the flexibility of how you derive the configuration before passing it to Roll.
+Roll operates on a per environment basis, so you can have a dedicated Roll configuration file per environment. Roll also just works against Clojure maps, so you all the flexibility of how you derive the configuration before passing it to Roll and ultimately to Terraform.
 
-Roll assumes that deployable application versions are accessible in S3, and you get to provide the start-up instructions. Therefore it's orthogonal to whether you want to use Uberjars, Docker containers, or whatever else.
+Roll assumes that deployable application versions are accessible in S3, and asks you to provide the start-up instructions. Therefore it's orthogonal to whether you want to use Uberjars, Docker containers, or whatever else.
 
 WARNING: Warning: Roll is in active development, everything about it - including this document - is being modified on a regular basis. Currently it is not recommended for general usage.
 

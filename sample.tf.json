@@ -1,0 +1,111 @@
+{
+    "provider": {
+        "aws": {
+            "profile": null,
+            "region": "eu-west-1"
+        }
+    },
+    "module": {
+        "foo_service_r6se6Lit85T3W7H14m1cy2": {
+            "instance_count": 7,
+            "key_name": "ECujWD76I0xIym62TD",
+            "availability_zones": [
+                "eu-west-1a",
+                "eu-west-1b"
+            ],
+            "security_group_id": "${module.foo-service_security.id}",
+            "target_group_arns": [
+                "${module.foo-service_alb_target.arn}"
+            ],
+            "iam_instance_profile": "${module.foo-service_security.iam_instance_profile}",
+            "instance_type": "MM3rF",
+            "source": "node_modules/@juxt/roll/tf/modules/asg",
+            "environment": "staging-env-foo-service-r6se6Lit85T3W7H14m1cy2",
+            "user_data": "${data.template_file.foo-service_r6se6Lit85T3W7H14m1cy2_user_data.rendered}",
+            "ami": "RZr9WWrHIS"
+        },
+        "foo_service_443_alb_security_group": {
+            "name": "foo-service",
+            "environment": "staging-env",
+            "listen_port": 443,
+            "source": "node_modules/@juxt/roll/tf/modules/alb_security_group"
+        },
+        "foo_service_alb_target": {
+            "name": "foo-service",
+            "environment": "staging-env",
+            "security_groups": [
+                "${module.foo-service_443_alb_security_group.id}"
+            ],
+            "vpc_id": "Jcr3y5tSMc90fEhMb3U36ZOxQF",
+            "subnet_ids": [
+                "subnet1",
+                "subnet2"
+            ],
+            "source": "node_modules/@juxt/roll/tf/modules/alb_target"
+        },
+        "foo_service_0_alb_front": {
+            "listen_port": 443,
+            "protocol": "HTTP",
+            "ssl_policy": "ELBSecurityPolicy-2015-05",
+            "certificate_arn": "arn:aws:acm:eu-west-1:123456789:certificate/AAAA",
+            "target_group_arn": "${module.foo-service_alb_target.arn}",
+            "load_balancer_arn": "${module.foo-service_alb_target.load_balancer_arn}",
+            "source": "node_modules/@juxt/roll/tf/modules/alb_front"
+        },
+        "foo_route53_alias": {
+            "name": "foo",
+            "zone_id": "QQ",
+            "target_dns_name": "${module.foo-service_alb_target.dns_name}",
+            "target_zone_id": "${module.foo-service_alb_target.zone_id}",
+            "source": "node_modules/@juxt/roll/tf/modules/route53record"
+        },
+        "foo_service_security": {
+            "environment": "staging-env-foo-service",
+            "port": 8080,
+            "source": "node_modules/@juxt/roll/tf/modules/security"
+        },
+        "bastion": {
+            "environment": "staging-env",
+            "key_name": "some-key",
+            "user_data": "some init user data for the bastion",
+            "source": "node_modules/@juxt/roll/tf/modules/bastion"
+        },
+        "kms_key": {
+            "alias": "staging-env",
+            "root_arn": "ewW5I3r27",
+            "admin_arns": [
+                "UF0"
+            ],
+            "user_arns": [
+                "${module.bastion.role_arn}",
+                "${module.foo-service_security.role_arn}"
+            ],
+            "attachment_arns": [
+                "${module.bastion.role_arn}",
+                "${module.foo-service_security.role_arn}"
+            ],
+            "source": "node_modules/@juxt/roll/tf/modules/kms"
+        }
+    },
+    "resource": {
+        "aws_iam_role_policy": {
+            "foo_service": {
+                "name": "staging-env-foo-service",
+                "role": "${module.foo-service_security.role_id}",
+                "policy": "{\n    \"Statement\": [\n        {\n            \"Effect\": \"Allow\",\n            \"Action\": [\n                \"s3:GetObject\"\n            ],\n            \"Resource\": [\n                \"arn:aws:s3:::957IlX61a2owfjSNDnz7/*\"\n            ]\n        }\n    ]\n}"
+            }
+        }
+    },
+    "data": {
+        "template_file": {
+            "foo_service_r6se6Lit85T3W7H14m1cy2_user_data": {
+                "template": "${file(\"node_modules/@juxt/roll/tf/files/run-server.sh\")}",
+                "vars": {
+                    "launch_command": null,
+                    "release_artifact": "wD54GQ9PaY34Vd6B9Ley4",
+                    "releases_bucket": "957IlX61a2owfjSNDnz7"
+                }
+            }
+        }
+    }
+}

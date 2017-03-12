@@ -6,7 +6,7 @@ Roll operates on a per environment basis, so you can have a dedicated Roll confi
 
 Roll assumes that deployable application versions are accessible in S3, and you get to provide the start-up instructions. Therefore it's orthogonal to whether you want to use Uberjars, Docker containers, or whatever else.
 
-WARNING: Warning: Roll is in active development, everything about it - including this document - is being modified on a regular basis.
+WARNING: Warning: Roll is in active development, everything about it - including this document - is being modified on a regular basis. Currently it is not recommended for general usage.
 
 == Features
 
@@ -54,9 +54,26 @@ We recommend that https://github.com/juxt/aero[Aero] be used to house the Roll c
 
 == Usage
 
-To use Roll from the command line, we suggest you use it in conjunction with https://github.com/juxt/mach[Mach] (Mach is your Make).
+=== With Lumo
 
-Details on Mach integration will be added soon.
+You can use Roll with Lumo to generate a Terraform JSON file, which will be picked up when you subsequently execute Terraform commands in the same directory.
+
+    npm install juxt/roll
+    lumo -c node_modules/@juxt/roll/src -m roll.tf <roll-edn-file>
+
+Will generate you a file called `deployment.tf.json`. If you name your Roll file `roll.edn` then the last argument can be ommitted.
+
+=== With Mach
+
+TODO: Details on Mach integration will be added soon.
+
+https://github.com/juxt/mach[Mach] is your Make.
+
+== Configuration
+
+See the sample Roll configuration file sample-config.edn[sample-config.edn].
+
+See also the sample.tf.json[sample output Terraform file] to get a feel for what is generated.
 
 == Justification
 

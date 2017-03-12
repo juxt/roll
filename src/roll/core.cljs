@@ -110,12 +110,13 @@
 (defn resolve-path [path]
   (clojure.string/join "_"  (map name path)))
 
-(def roll-home "node_modules/@juxt/roll")
+(defn roll-module-src [roll-home module]
+  (str roll-home "/tf/modules/" (name module)))
 
 (defn module
-  [path module m]
+  [path src m]
   [(resolve-path path)
-   (assoc m :source (str roll-home "/tf/modules/" (name module)))])
+   (assoc m :source src)])
 
 (defn ref-module-var [path var]
   (str "${module." (resolve-path path) "." var "}"))
@@ -142,7 +143,7 @@
                      x)))
        ->json))
 
-(defn deployment->tf [{:keys [environment releases-bucket] :as config}]
+(defn deployment->tf [{:keys [environment releases-bucket] :as config} {:keys [roll-home]}]
   (when (= ::s/invalid (s/conform ::config config))
     (println (s/explain-data ::config config))
     (throw (ex-info "Invalid input" (s/explain-data ::config config))))
@@ -152,7 +153,8 @@
    (into {}
          (concat
           (for [{:keys [service version load-balancer] :as m} (:asgs config)]
-            (module [service version] :asg
+            (module [service version]
+                    (roll-module-src roll-home :asg)
                     (-> config :services service
                         (select-keys [:instance-count :instance-type :ami :key-name :availability-zones])
                         (merge {:environment (str environment "-" (name service) "-" version)
@@ -168,11 +170,13 @@
                        :let [listen-ports (map :listen listeners)]]
                    (concat
                      (for [port listen-ports]
-                       (module [balancer (str port) "alb_security_group"] :alb_security_group
+                       (module [balancer (str port) "alb_security_group"]
+                               (roll-module-src roll-home :alb_security_group)
                                {:name (name balancer)
                                 :environment environment
                                 :listen_port port}))
-                     [(module [balancer "alb_target"] :alb_target
+                     [(module [balancer "alb_target"]
+                              (roll-module-src roll-home :alb_target)
                               {:name (name balancer)
                                :environment environment
                                :security_groups (map #(ref-module-var [balancer (str %) "alb_security_group"] "id") listen-ports)
@@ -180,7 +184,8 @@
                                :subnet_ids (:subnets config)})]
                      (map-indexed
                        (fn [i {:keys [listen forward protocol ssl-policy certificate-arn]}]
-                         (module [balancer (str i) "alb_front"] :alb_front
+                         (module [balancer (str i) "alb_front"]
+                                 (roll-module-src roll-home :alb_front)
                                  {:listen-port listen
                                   :protocol protocol
                                   :ssl-policy ssl-policy
@@ -192,7 +197,8 @@
           ;; Create Alias Resource Record Sets
           (for [{:keys [resource-name name-prefix zone-id load-balancer]} (:route-53-aliases config)
                 :let [_ (assert (get-in config [:load-balancers load-balancer]))]]
-            (module [(or resource-name (str/replace name-prefix #"\." "_")) "route53_alias"] :route53record
+            (module [(or resource-name (str/replace name-prefix #"\." "_")) "route53_alias"]
+                    (roll-module-src roll-home :route53record)
                     {:name name-prefix
                      :zone-id zone-id
                      :target-dns-name (ref-module-var [load-balancer "alb_target"] "dns_name")
@@ -200,13 +206,15 @@
 
           ;; Create IAM role for each service
           (for [service (keys (:services config))]
-            (module [service "security"] :security
+            (module [service "security"]
+                    (roll-module-src roll-home :security)
                     {:environment (str environment "-" (name service))
                      :port 8080}))
 
           ;; Creating the bastion
           (when (:bastion config)
-            [(module ["bastion"] :bastion
+            [(module ["bastion"]
+                     (roll-module-src roll-home :bastion)
                      {:environment environment
                       :key-name (-> config :bastion :key-name)
                       :user-data (-> config :bastion :user-data)})])
@@ -215,7 +223,8 @@
           (let [users (cons (ref-module-var ["bastion"] "role_arn")
                             (for [service (keys (:services config))]
                               (ref-module-var [service "security"] "role_arn")))]
-            [(module ["kms-key"] :kms
+            [(module ["kms-key"]
+                     (roll-module-src roll-home :kms)
                      {:alias environment
                       :root-arn (-> config :kms :root)
                       :admin-arns (-> config :kms :admins)

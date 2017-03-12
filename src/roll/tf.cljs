@@ -17,6 +17,6 @@
         (fs.readFileSync "utf-8")
         reader/read-string
         roll.core/preprocess
-        roll.core/deployment->tf
+        (roll.core/deployment->tf {:roll-home "node_modules/@juxt/roll"})
         roll.core/->tf-json
         (write-tf output-file))))

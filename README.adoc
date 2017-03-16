@@ -67,9 +67,36 @@ Will generate you a file called `deployment.tf.json`. If you name your Roll file
 
 === With Mach
 
-TODO: Details on Mach integration will be added soon.
-
 https://github.com/juxt/mach[Mach] is your Make.
+
+Here is a sample Machfile configured with Roll, Terraform and some useful AWS targets:
+
+```
+{tfjson {product "deployment.tf.json"
+         novelty (mach.core/modified-since product ["Machfile.edn" "roll.edn"])
+         produce (let [{:keys [profile] :as config} (aero.core/read-config "roll.edn" {})]
+                   (-> config
+                       (roll.core/preprocess)
+                       (roll.core/deployment->tf {:roll-home ".mach/roll"})
+                       (roll.core/->tf-json)))}
+
+ mach/m2 [[aero "1.1.2"]]
+ mach/import [["https://raw.githubusercontent.com/juxt/mach/master/extensions/aws.mach.edn" {profile "xxx"}]
+              ["https://raw.githubusercontent.com/juxt/mach/master/extensions/roll.mach.edn"]
+              ["https://raw.githubusercontent.com/juxt/mach/master/extensions/terraform.mach.edn"
+               {aws-profile "xx"
+                bucket "xxx"
+                configs []}]]}
+```
+
+From the command-line
+
+```
+mach plan
+mach apply
+```
+
+Enjoy!
 
 == Configuration
 

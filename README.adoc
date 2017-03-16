@@ -132,7 +132,7 @@ Alas, Terraform by itself is not enough. For example we want blue/green deployme
 
 Roll achieves this by rebuilding the Terraform configuration to match a higher level declarative input which you can readily change (i.e. to deploy newer versions of an application). Roll is a DSL that sits above Terraform, providing an opinionated description of infrastructure that Terraform is used to make happen.
 
-Roll aims to give you the full Beanstalk like PaaS experience except there's no PaaS and you're completely in control. It also has extras such as setting up KMS for each 'service' and configuring your Area51 setup.
+Roll aims to give you the full Beanstalk like PaaS experience except there's no PaaS and you're completely in control. It also has extras such as setting up KMS for each 'service'.
 
 == Road map
 

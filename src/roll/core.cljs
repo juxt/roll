@@ -129,6 +129,13 @@
                                          ["--profile" (-> config :common :aws-profile)])))]
     (js->clj (js/JSON.parse (sh cmd)))))
 
+(defn resolve-region [config]
+  (if (-> config :common :aws-region) config
+      (assoc-in config [:common :aws-region]
+                (sh (vec (concat ["aws" "configure" "get" "region"]
+                                 (when (-> config :common :aws-profile)
+                                   ["--profile" (-> config :common :aws-profile)])))))))
+
 (defn- resolve-vpc [{:keys [vpc-id]:as config}]
   (assoc config :vpc-id (or vpc-id
                             (aws-cmd config
@@ -144,6 +151,7 @@
 
 (defn preprocess [config]
   (-> config
+      resolve-region
       (update-in [:asgs] (fn [asgs] (for [{:keys [release-artifact] :as asg} asgs]
                                       (if (= :latest release-artifact)
                                         (assoc asg :release-artifact (latest-artifact config)) asg))))

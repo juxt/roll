@@ -4,13 +4,17 @@
 {;; Environment is used to prefix the names of cloud constructs, to avoid name clashing
  :environment "staging-env"
 
- ;; The id of the AWS VPC
+ ;; The id of the AWS VPC, Optional as Roll will look for the default vpc ID
  :vpc-id "Jcr3y5tSMc90fEhMb3U36ZOxQF"
 
+ ;; Optional, Roll can derive the subnets using vpc-id
  :subnets ["subnet1" "subnet2"]
- :common {:aws-region "eu-west-1"}
+ ;; Optional, Roll can derive the aws-region from the configured profile
+ :aws-region "eu-west-1"
 
- ;; TODO change keys to have ARN in them
+ ;; TODO change keys to have ARN in them Optional: Provision an AWS
+ ;; KMS Key for this environment and give rights to service and
+ ;; bastion IAM role.
  :kms {:root "ewW5I3r27"
        :admins ["UF0"]}
 
@@ -24,7 +28,7 @@
                                  :ssl-policy "ELBSecurityPolicy-2015-05"
                                  :certificate-arn "arn:aws:acm:eu-west-1:123456789:certificate/AAAA"}]},
 
- ;; Route-53 aliases, pointing to the load-balancer
+ ;; Optional: Route-53 aliases, pointing to the load-balancer
  :route-53-aliases [{:name-prefix "foo"
                      :zone-id "QQ",
                      :load-balancer :foo-service}]
@@ -42,5 +46,6 @@
          :release-artifact "wD54GQ9PaY34Vd6B9Ley4"
          :version "r6se6Lit85T3W7H14m1cy2"}]
 
+ ;; Optional
  :bastion {:key-name "some-key"
            :user-data "some init user data for the bastion"}}

@@ -17,12 +17,9 @@
 (s/def ::subnets (s/coll-of string? :kind vector?))
 
 ;; Use for AWS provider
-(s/def :common/aws-profile (s/nilable string?))
+(s/def ::aws-profile (s/nilable string?))
 ;; Use for AWS provider
-(s/def :common/aws-region string?)
-;; TODO flatten/remove common:
-(s/def ::common (s/keys :req-un [:common/aws-region]
-                        :opt-un [:common/aws-profile]))
+(s/def ::aws-region string?)
 
 ;; KMS Root User Arn
 (s/def :kms/root string?)
@@ -81,13 +78,14 @@
                                  ::releases-bucket
                                  ::vpc-id
                                  ::subnets
-                                 ::kms
-                                 ::common
                                  ::load-balancers
-                                 ::route-53-aliases
                                  ::services
-                                 ::asgs]
-                        :opt-un [::bastion]))
+                                 ::asgs
+                                 ::aws-region
+                                 ::aws-profile]
+                        :opt-un [::bastion
+                                 ::route-53-aliases
+                                 ::kms]))
 
 (def child_process (cljs.nodejs/require "child_process"))
 (defn sh [args]
@@ -99,8 +97,8 @@
 
 (defn- latest-artifact [config]
   (->> (str/split (sh (vec (concat ["aws" "s3" "ls" (:releases-bucket config)]
-                                   (when (-> config :common :aws-profile)
-                                     ["--profile" (-> config :common :aws-profile)])))) "\n")
+                                   (when (-> config :aws-profile)
+                                     ["--profile" (-> config :aws-profile)])))) "\n")
        (map #(str/split % #"\s+"))
        (sort-by (juxt first second))
        last
@@ -124,17 +122,17 @@
 (defn render-template [path]
   (str "${data.template_file." (resolve-path path) ".rendered}"))
 
-(defn- aws-cmd [config & parts]
-  (let [cmd (vec (concat ["aws"] parts (when (-> config :common :aws-profile)
-                                         ["--profile" (-> config :common :aws-profile)])))]
+(defn- aws-cmd [{:keys [aws-profile] :as config} & parts]
+  (let [cmd (vec (concat ["aws"] parts (when aws-profile
+                                         ["--profile" aws-profile])))]
     (js->clj (js/JSON.parse (sh cmd)))))
 
-(defn resolve-region [config]
-  (if (-> config :common :aws-region) config
-      (assoc-in config [:common :aws-region]
-                (sh (vec (concat ["aws" "configure" "get" "region"]
-                                 (when (-> config :common :aws-profile)
-                                   ["--profile" (-> config :common :aws-profile)])))))))
+(defn resolve-region [{:keys [aws-profile aws-region] :as config}]
+  (if aws-region config
+      (assoc config :aws-region
+             (sh (vec (concat ["aws" "configure" "get" "region"]
+                              (when aws-profile
+                                ["--profile" aws-profile])))))))
 
 (defn- resolve-vpc [{:keys [vpc-id]:as config}]
   (assoc config :vpc-id (or vpc-id
@@ -171,12 +169,12 @@
                      x)))
        ->json))
 
-(defn deployment->tf [{:keys [environment releases-bucket] :as config} {:keys [roll-home]}]
+(defn deployment->tf [{:keys [environment releases-bucket aws-profile aws-region] :as config} {:keys [roll-home]}]
   (when (= ::s/invalid (s/conform ::config config))
     (println (s/explain-data ::config config))
     (throw (ex-info "Invalid input" (s/explain-data ::config config))))
-  {:provider {"aws" {:profile (-> config :common :aws-profile)
-                     :region (-> config :common :aws-region)}}
+  {:provider {"aws" {:profile aws-profile
+                     :region aws-region}}
    :module
    (into {}
          (concat
@@ -248,16 +246,17 @@
                       :user-data (-> config :bastion :user-data)})])
 
           ;; Create the encryption key allow each service to use it, including the bastion
-          (let [users (cons (ref-module-var ["bastion"] "role_arn")
-                            (for [service (keys (:services config))]
-                              (ref-module-var [service "security"] "role_arn")))]
-            [(module ["kms-key"]
-                     (roll-module-src roll-home :kms)
-                     {:alias environment
-                      :root-arn (-> config :kms :root)
-                      :admin-arns (-> config :kms :admins)
-                      :user-arns users
-                      :attachment-arns users})])))
+          (when (:kms config)
+              (let [users (cons (ref-module-var ["bastion"] "role_arn")
+                                (for [service (keys (:services config))]
+                                  (ref-module-var [service "security"] "role_arn")))]
+                [(module ["kms-key"]
+                         (roll-module-src roll-home :kms)
+                         {:alias environment
+                          :root-arn (-> config :kms :root)
+                          :admin-arns (-> config :kms :admins)
+                          :user-arns users
+                          :attachment-arns users})]))))
 
    :resource
    { ;;Every service we run needs access to S3 to fetch releases, plus additional policies:

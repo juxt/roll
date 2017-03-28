@@ -124,11 +124,21 @@
 (defn render-template [path]
   (str "${data.template_file." (resolve-path path) ".rendered}"))
 
+(defn- resolve-vpc [{:keys [vpc-id]:as config}]
+  (assoc config :vpc-id (or vpc-id
+                            (let [cmd (vec (concat ["aws" "ec2" "describe-vpcs"]
+                                                   ["--query" "\"Vpcs[]|[0]|VpcId\""]
+                                                   ["--filters" "Name=isDefault,Values=true"]
+                                                   (when (-> config :common :aws-profile)
+                                                     ["--profile" (-> config :common :aws-profile)])))]
+                              (sh cmd)))))
+
 (defn preprocess [config]
   (-> config
       (update-in [:asgs] (fn [asgs] (for [{:keys [release-artifact] :as asg} asgs]
                                       (if (= :latest release-artifact)
-                                        (assoc asg :release-artifact (latest-artifact config)) asg))))))
+                                        (assoc asg :release-artifact (latest-artifact config)) asg))))
+      resolve-vpc))
 
 (defn ->json [m]
   (js/JSON.stringify (clj->js m) nil 4))

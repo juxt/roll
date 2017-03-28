@@ -133,12 +133,25 @@
                                                      ["--profile" (-> config :common :aws-profile)])))]
                               (sh cmd)))))
 
+(defn- resolve-subnets [{:keys [subnets vpc-id] :as config}]
+  (assoc config :subnets (or subnets
+                             (let [cmd (vec (concat ["aws" "ec2" "describe-subnets"]
+                                                    ["--filters" (str "\"Name=vpc-id,Values=" vpc-id "\"")]
+                                                    (when (-> config :common :aws-profile)
+                                                      ["--profile" (-> config :common :aws-profile)])))]
+                               (mapv #(get % "SubnetId") (-> cmd
+                                                             sh
+                                                             js/JSON.parse
+                                                             js->clj
+                                                             (get "Subnets")))))))
+
 (defn preprocess [config]
   (-> config
       (update-in [:asgs] (fn [asgs] (for [{:keys [release-artifact] :as asg} asgs]
                                       (if (= :latest release-artifact)
                                         (assoc asg :release-artifact (latest-artifact config)) asg))))
-      resolve-vpc))
+      resolve-vpc
+      resolve-subnets))
 
 (defn ->json [m]
   (js/JSON.stringify (clj->js m) nil 4))

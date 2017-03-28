@@ -124,26 +124,23 @@
 (defn render-template [path]
   (str "${data.template_file." (resolve-path path) ".rendered}"))
 
+(defn- aws-cmd [config & parts]
+  (let [cmd (vec (concat ["aws"] parts (when (-> config :common :aws-profile)
+                                         ["--profile" (-> config :common :aws-profile)])))]
+    (js->clj (js/JSON.parse (sh cmd)))))
+
 (defn- resolve-vpc [{:keys [vpc-id]:as config}]
   (assoc config :vpc-id (or vpc-id
-                            (let [cmd (vec (concat ["aws" "ec2" "describe-vpcs"]
-                                                   ["--query" "\"Vpcs[]|[0]|VpcId\""]
-                                                   ["--filters" "Name=isDefault,Values=true"]
-                                                   (when (-> config :common :aws-profile)
-                                                     ["--profile" (-> config :common :aws-profile)])))]
-                              (sh cmd)))))
+                            (aws-cmd config
+                                     "ec2" "describe-vpcs"
+                                     "--query" "\"Vpcs[]|[0]|VpcId\"" "--filters" "Name=isDefault,Values=true"))))
 
 (defn- resolve-subnets [{:keys [subnets vpc-id] :as config}]
   (assoc config :subnets (or subnets
-                             (let [cmd (vec (concat ["aws" "ec2" "describe-subnets"]
-                                                    ["--filters" (str "\"Name=vpc-id,Values=" vpc-id "\"")]
-                                                    (when (-> config :common :aws-profile)
-                                                      ["--profile" (-> config :common :aws-profile)])))]
-                               (mapv #(get % "SubnetId") (-> cmd
-                                                             sh
-                                                             js/JSON.parse
-                                                             js->clj
-                                                             (get "Subnets")))))))
+                             (mapv #(get % "SubnetId") (-> (aws-cmd config
+                                                                    "ec2" "describe-subnets"
+                                                                    "--filters" (str "\"Name=vpc-id,Values=" vpc-id "\""))
+                                                           (get "Subnets"))))))
 
 (defn preprocess [config]
   (-> config

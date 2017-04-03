@@ -130,9 +130,9 @@
 (defn resolve-region [{:keys [aws-profile aws-region] :as config}]
   (if aws-region config
       (assoc config :aws-region
-             (sh (vec (concat ["aws" "configure" "get" "region"]
-                              (when aws-profile
-                                ["--profile" aws-profile])))))))
+             (.trim (sh (vec (concat ["aws" "configure" "get" "region"]
+                                     (when aws-profile
+                                       ["--profile" aws-profile]))))))))
 
 (defn- resolve-vpc [{:keys [vpc-id]:as config}]
   (assoc config :vpc-id (or vpc-id

@@ -101,6 +101,8 @@ mach apply
 
 Enjoy!
 
+See our https://github.com/juxt/edge[Edge] project for an example usage of Mach and Roll.
+
 == Configuration
 
 See the sample Roll configuration file link:sample-config.edn[sample-config.edn].

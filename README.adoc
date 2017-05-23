@@ -142,3 +142,13 @@ Roll aims to give you the full Beanstalk like PaaS experience except there's no 
 == Road map
 
 Roll is in active development, come back soon for the full readme experience.
+
+== Developing Roll
+
+Add these lines to your Machfile before Roll is invoked
+
+```
+#cp "{path-to-roll}/src"
+#cp "{path-to-roll}/tf"
+
+```

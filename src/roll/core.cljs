@@ -111,16 +111,6 @@
 
     (str (.-stdout result))))
 
-(defn- latest-artifact [config]
-  (->> (str/split (sh (vec (concat ["aws" "s3" "ls" (:releases-bucket config)]
-                                   (when (-> config :aws-profile)
-                                     ["--profile" (-> config :aws-profile)])))) "\n")
-       (map #(str/split % #"\s+"))
-       (sort-by (juxt first second))
-       last
-       last
-       str))
-
 (defn- aws-cmd [{:keys [aws-profile] :as config} & parts]
   (let [cmd (vec (concat ["aws"] parts (when aws-profile
                                          ["--profile" aws-profile])))]
@@ -128,7 +118,6 @@
 
 (defn resolve-region [{:keys [aws-profile aws-region] :as config}]
   (when-not aws-region
-    (println "Resolving AWS Region")
     (assoc config :aws-region
            (.trim (sh (vec (concat ["aws" "configure" "get" "region"]
                                    (when aws-profile
@@ -136,28 +125,33 @@
 
 (defn- resolve-vpc [{:keys [vpc-id]:as config}]
   (when-not vpc-id
-    (println "Resolving VPC ID")
     (assoc config :vpc-id (aws-cmd config
                                    "ec2" "describe-vpcs"
                                    "--query" "\"Vpcs[]|[0]|VpcId\"" "--filters" "Name=isDefault,Values=true"))))
 
 (defn- resolve-subnets [{:keys [subnets vpc-id] :as config}]
   (when-not subnets
-    (println "Resolving Subnets")
     (assoc config :subnets (mapv #(get % "SubnetId") (-> (aws-cmd config
                                                                   "ec2" "describe-subnets"
                                                                   "--filters" (str "\"Name=vpc-id,Values=" vpc-id "\""))
                                                          (get "Subnets"))))))
 
-(defn- resolve-release-artefacts [config]
-  (update-in config [:asgs] (fn [asgs] (for [{:keys [release-artifact] :as asg} asgs]
-                                         (if (= :latest release-artifact)
-                                           (assoc asg :release-artifact (latest-artifact config)) asg)))))
+(defn- resolve-latest-release-artefact [{:keys [latest-release-artefact] :as config}]
+  (when-not latest-release-artefact
+    (assoc config :latest-release-artefact
+           (->> (str/split (sh (vec (concat ["aws" "s3" "ls" (:releases-bucket config)]
+                                            (when (-> config :aws-profile)
+                                              ["--profile" (-> config :aws-profile)])))) "\n")
+                (map #(str/split % #"\s+"))
+                (sort-by (juxt first second))
+                last
+                last
+                str))))
 
 (defn preprocess [config & [{:keys [cache-file] :as opts}]]
   (or (and cache-file (fs.existsSync cache-file) (reader/read-string (fs.readFileSync cache-file "utf-8")))
       (let [config (reduce #(or (%2 %1) %1) config [resolve-region
-                                                    resolve-release-artefacts
+                                                    resolve-latest-release-artefact
                                                     resolve-vpc
                                                     resolve-subnets])]
         (when cache-file

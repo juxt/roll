@@ -7,7 +7,7 @@
   (into {} (for [service (keys (:services config))
                  :let [environment (str environment "-" (name service))]]
              [service
-              {:name (str environment "_app")
+              {:name environment
                :description (str "Allow access to " environment" application")
 
                :ingress [{:from-port 22
@@ -27,11 +27,11 @@
                :tags {:name environment}}])))
 
 (def default-iam-policy
-  {:version "2012-10-17"
-   :statement [{:sid ""
-                :action "sts:AssumeRole"
-                :effect "Allow"
-                :principal {:Service "ec2.amazonaws.com"}}]})
+  {:Version "2012-10-17"
+   :Statement [{:Sid ""
+                :Action "sts:AssumeRole"
+                :Effect "Allow"
+                :Principal {:Service "ec2.amazonaws.com"}}]})
 
 (defn- aws-iam-roles
   "Generate an IAM role for each service."
@@ -48,7 +48,7 @@
                  :let [environment (str environment "-" (name service))]]
              [service
               {:name environment
-               :roles [(ref-var [:aws-iam-role service :name])]}])))
+               :role (ref-var [:aws-iam-role service :name])}])))
 
 (defn- aws-iam-role-policies
   "Every service we run needs access to S3 to fetch releases, plus

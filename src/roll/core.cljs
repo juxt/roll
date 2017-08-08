@@ -89,13 +89,13 @@
                                  ::vpc-id
                                  ::subnets
                                  ::services
-                                 ::asgs
                                  ::aws-region
                                  ::aws-profile]
                         :opt-un [::bastion
                                  ::route-53-aliases
                                  ::kms
-                                 ::load-balancers]))
+                                 ::load-balancers
+                                 ::asgs]))
 
 (def child_process (cljs.nodejs/require "child_process"))
 

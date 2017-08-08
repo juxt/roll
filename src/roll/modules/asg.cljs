@@ -19,30 +19,30 @@
             :lifecycle {:create-before-destroy false}}])))
 
 (defn- auto-scaling-groups [{:keys [environment availability-zones] :as config}]
-  (when (not-empty (:asgs config))
-    (into {}
-          (for [{:keys [service version load-balancer] :as m} (:asgs config)
-                :let [{:keys [instance-count target-group-arns] :or {instance-count 2
-                                                                     target-group-arns []}}
-                      (-> config :services service)
-                      asg-name (str environment "-" (name service) "-" version)]]
-            [asg-name
-             (merge
-              {:availability-zones    availability-zones
-               :name                  asg-name
-               :max-size              (str instance-count)
-               :min-size              (str instance-count)
-               :launch-configuration  (ref-var [:aws-launch-configuration asg-name :name])
+  (into {}
+        (for [{:keys [service version load-balancer] :as m} (:asgs config)
+              :let [{:keys [instance-count target-group-arns] :or {instance-count 2
+                                                                   target-group-arns []}}
+                    (-> config :services service)
+                    asg-name (str environment "-" (name service) "-" version)]]
+          [asg-name
+           (merge
+            {:availability-zones    availability-zones
+             :name                  asg-name
+             :max-size              (str instance-count)
+             :min-size              (str instance-count)
+             :launch-configuration  (ref-var [:aws-launch-configuration asg-name :name])
 
-               :tag [{:key "Name"
-                      :value asg-name
-                      :propagate_at_launch true}]
+             :tag [{:key "Name"
+                    :value asg-name
+                    :propagate_at_launch true}]
 
-               :lifecycle {:create_before_destroy true}}
-              (when load-balancer
-                {:target-group-arns [(ref-var [:aws-alb-target-group load-balancer :arn])]}))]))))
+             :lifecycle {:create_before_destroy true}}
+            (when load-balancer
+              {:target-group-arns [(ref-var [:aws-alb-target-group load-balancer :arn])]}))])))
 
 (defn generate [config]
-  {:resource
-   {:aws-launch-configuration (launch-configurations config)
-    :aws-autoscaling-group (auto-scaling-groups config)}})
+  (when (not-empty (:asgs config))
+    {:resource
+     {:aws-launch-configuration (launch-configurations config)
+      :aws-autoscaling-group (auto-scaling-groups config)}}))

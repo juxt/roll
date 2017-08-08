@@ -18,11 +18,11 @@
             :key-name key-name
             :lifecycle {:create-before-destroy false}}])))
 
-(defn- auto-scaling-groups [{:keys [environment availability-zones] :as config}]
+(defn- auto-scaling-groups [{:keys [environment] :as config}]
   (into {}
         (for [{:keys [service version load-balancer] :as m} (:asgs config)
-              :let [{:keys [instance-count target-group-arns] :or {instance-count 2
-                                                                   target-group-arns []}}
+              :let [{:keys [instance-count target-group-arns availability-zones] :or {instance-count 2
+                                                                                      target-group-arns []}}
                     (-> config :services service)
                     asg-name (str environment "-" (name service) "-" version)]]
           [asg-name

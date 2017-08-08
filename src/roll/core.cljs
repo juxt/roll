@@ -136,22 +136,46 @@
                                                                   "--filters" (str "\"Name=vpc-id,Values=" vpc-id "\""))
                                                          (get "Subnets"))))))
 
-(defn- resolve-latest-release-artefact [{:keys [latest-release-artefact] :as config}]
-  (when-not latest-release-artefact
-    (assoc config :latest-release-artefact
-           (->> (str/split (sh (vec (concat ["aws" "s3" "ls" (:releases-bucket config)]
-                                            (when (-> config :aws-profile)
-                                              ["--profile" (-> config :aws-profile)])))) "\n")
-                (map #(str/split % #"\s+"))
-                (sort-by (juxt first second))
-                last
-                last
-                str))))
+(defn- latest-release-artifact [config]
+  (->> (str/split (sh (vec (concat ["aws" "s3" "ls" (:releases-bucket config)]
+                                   (when (-> config :aws-profile)
+                                     ["--profile" (-> config :aws-profile)])))) "\n")
+       (map #(str/split % #"\s+"))
+       (sort-by (juxt first second))
+       last
+       last
+       str))
+
+(defn- resolve-latest-release-artifact [config]
+  (update-in config [:asgs] (fn [asgs]
+                              (for [{:keys [release-artifact] :as asg} asgs]
+                                (if (= ::latest-release-artifact release-artifact)
+                                  (assoc asg :release-artifact (latest-release-artifact config))
+                                  asg)))))
+
+(defn- version-for-artifact [{:keys [releases-bucket] :as config} release-artifact]
+  (some-> (aws-cmd config
+                   "s3api" "head-object"
+                   "--bucket" releases-bucket
+                   "--key" release-artifact)
+          (get-in ["Metadata" "version"])
+          (clojure.string/replace #"\.|\-" "_")))
+
+(defn- resolve-asg-versions
+  "If the release artifact has version meta data associated with it in
+  S3, use this as the version to attach to the autoscaling group."
+  [config]
+  (update-in config [:asgs] (fn [asgs]
+                              (for [{:keys [release-artifact version] :as asg} asgs]
+                                (if-not version
+                                  (assoc asg :version (version-for-artifact config release-artifact))
+                                  asg)))))
 
 (defn preprocess [config & [{:keys [cache-file] :as opts}]]
   (or (and cache-file (fs.existsSync cache-file) (reader/read-string (fs.readFileSync cache-file "utf-8")))
       (let [config (reduce #(or (%2 %1) %1) config [resolve-region
-                                                    resolve-latest-release-artefact
+                                                    resolve-latest-release-artifact
+                                                    resolve-asg-versions
                                                     resolve-vpc
                                                     resolve-subnets])]
         (when cache-file

@@ -180,13 +180,35 @@
                                   (assoc asg :version (version-for-artifact config release-artifact))
                                   asg)))))
 
+(defn- fetch-default-availability-zones
+  [config]
+  (mapv #(get % "ZoneName")
+        (-> (aws-cmd config
+                     "ec2" "describe-availability-zones"
+                     "--filters" (str "Name=region-name,Values=" (:aws-region config)))
+            (get "AvailabilityZones"))))
+
+(defn- resolve-service-availability-zones
+  "Autoscaling groups derived from services require
+  availability-zones. The default availability-zones is used if not
+  specified directly on the individual service."
+  [{:keys [services] :as config}]
+  (when (not-empty (remove :availability-zones (vals services)))
+    (let [default-availability-zones (or (:availability-zones config)
+                                         (fetch-default-availability-zones config))]
+      (assoc config :services (into {}
+                                    (for [[k service] services]
+                                      [k (assoc service :availability-zones (or (:availability-zones service)
+                                                                                default-availability-zones))]))))))
+
 (defn preprocess [config & [{:keys [cache-file] :as opts}]]
   (or (and cache-file (fs.existsSync cache-file) (reader/read-string (fs.readFileSync cache-file "utf-8")))
       (let [config (reduce #(or (%2 %1) %1) config [resolve-region
                                                     resolve-latest-release-artifact
                                                     resolve-asg-versions
                                                     resolve-vpc
-                                                    resolve-subnets])]
+                                                    resolve-subnets
+                                                    resolve-service-availability-zones])]
         (when cache-file
           (fs.writeFileSync cache-file config))
         config)))

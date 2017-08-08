@@ -183,9 +183,6 @@
     (println (s/explain-data ::config config))
     (throw (ex-info "Invalid input" (s/explain-data ::config config))))
 
-  (pprint/pprint
-   (config->tf config))
-
   (config->tf config))
 
 ;; TODO pull this out of Roll - see cp

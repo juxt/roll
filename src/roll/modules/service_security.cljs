@@ -4,20 +4,23 @@
 (defn- aws-security-groups
   "Generate a security group for each service."
   [{:keys [environment] :as config}]
-  (into {} (for [service (keys (:services config))
-                 :let [environment (str environment "-" (name service))]]
-             [service
+  (into {} (for [[service-k {:keys [port]}] (:services config)
+                 :let [environment (str environment "-" (name service-k))]]
+             [service-k
               {:name environment
                :description (str "Allow access to " environment" application")
 
-               :ingress [{:from-port 22
-                          :to-port 22
-                          :protocol "tcp"
-                          :cidr-blocks ["0.0.0.0/0"]}
-                         {:from-port 8080
-                          :to-port 8080
-                          :protocol "tcp"
-                          :cidr-blocks ["0.0.0.0/0"]}]
+               :ingress (remove nil?
+                                [{:from-port 22
+                                  :to-port 22
+                                  :protocol "tcp"
+                                  :cidr-blocks ["0.0.0.0/0"]}
+
+                                 (when port
+                                   {:from-port port
+                                    :to-port port
+                                    :protocol "tcp"
+                                    :cidr-blocks ["0.0.0.0/0"]})])
 
                :egress [{:from-port 0
                          :to-port 65535

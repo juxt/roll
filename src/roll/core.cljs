@@ -64,11 +64,13 @@
 (s/def :service/key-name string?)
 (s/def :service/instance-count int?)
 (s/def :service/availability-zones (s/coll-of string? :kind vector?))
+(s/def :service/port int?)
 (s/def ::service (s/keys :req-un [:service/ami
-                                 :service/instance-type
-                                 :service/key-name
-                                 :service/instance-count
-                                 :service/availability-zones]))
+                                  :service/instance-type
+                                  :service/key-name
+                                  :service/instance-count
+                                  :service/availability-zones
+                                  :service/port]))
 (s/def ::services (s/map-of keyword? ::service))
 
 (s/def :asg/service keyword?)

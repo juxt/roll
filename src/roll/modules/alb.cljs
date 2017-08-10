@@ -32,14 +32,15 @@
                      :to_port     0
                      :cidr_blocks ["0.0.0.0/0"]}}])))
 
-(defn- target-groups [{:keys [environment forward-port protocol vpc-id load-balancers]
-                       :or {forward-port 8080
-                            protocol "HTTP"}}]
+(defn- target-groups [{:keys [environment vpc-id load-balancers]}]
   (into {}
-        (for [[balancer listeners] load-balancers]
+        (for [[balancer listeners] load-balancers
+              [i {:keys [forward protocol] :or {forward 8080
+                                                protocol "HTTP"}}]
+              (map-indexed vector listeners)]
           [(name balancer)
-           {:name (str environment "-" (name balancer) "-alb-tg")
-            :port forward-port
+           {:name (str environment "-" (name balancer) "-" i "-alb-tg")
+            :port forward
             :protocol protocol
             :vpc-id vpc-id}])))
 

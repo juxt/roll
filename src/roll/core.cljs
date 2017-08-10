@@ -122,11 +122,11 @@
 (defn upload!
   "Uploads a release artifact to S3, preserving version metadata."
   [{:keys [releases-bucket aws-profile]} local-path s3-name version]
-  (sh ["aws" "s3" "cp"
-       local-path
-       (str "s3://" releases-bucket "/" s3-name)
-       "--metadata" (str "Version=" version)
-       "--profile" aws-profile]))
+  (let [dest (str "s3://" releases-bucket "/" s3-name)]
+    (println "Uploading" local-path "to" dest)
+    (sh ["aws" "s3" "cp" local-path dest
+         "--metadata" (str "Version=" version)
+         "--profile" aws-profile])))
 
 (defn resolve-region [{:keys [aws-profile aws-region] :as config}]
   (when-not aws-region

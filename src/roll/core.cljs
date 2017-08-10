@@ -74,9 +74,10 @@
 (s/def :asg/service keyword?)
 (s/def :asg/release-artifact string?)
 (s/def :asg/version string?)
+(s/def :asg/user-data string?)
 (s/def :asg/load-balancer keyword?)
 (s/def ::asg (s/keys :req-un [:asg/service :asg/release-artifact :asg/version]
-                     :opt-un [:asg/load-balancer]))
+                     :opt-un [:asg/load-balancer :asg/user-data]))
 (s/def ::asgs (s/coll-of ::asg))
 
 (s/def :bastion/key-name string?)
@@ -239,9 +240,3 @@
     (throw (ex-info "Invalid input" (s/explain-data ::config config))))
 
   (config->tf config))
-
-;; TODO pull this out of Roll - see cp
-(def fs (nodejs/require "fs"))
-(def mustache (cljs.nodejs/require "mustache"))
-(defn render-mustache [template-file m]
-  (.render mustache (fs.readFileSync template-file "utf-8") (clj->js m)))

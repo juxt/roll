@@ -19,7 +19,7 @@
 
 (defn render-mustache [m t]
   (let [t (lumo.io/slurp (lumo.io/resource t))]
-    (render t (clj->js m))))
+    (render t m)))
 
 (defn ->json
   [m]

@@ -3,7 +3,7 @@
 
 (defn- launch-configurations [{:keys [environment releases-bucket] :as config}]
   (into {}
-        (for [{:keys [service version load-balancer launch-command release-artifact] :as m} (:asgs config)
+        (for [{:keys [service version load-balancer launch-command release-artifact user-data] :as m} (:asgs config)
               :let [{:keys [instance-type ami key-name]} (-> config :services service)]]
           [(str environment "-" (name service) "-" version)
            {:name-prefix environment
@@ -11,10 +11,11 @@
             :instance-type instance-type
             :security-groups [(ref-var [:aws-security-group service :id])]
             :iam-instance-profile (ref-var [:aws-iam-instance-profile service :name])
-            :user-data (-> m
-                           (select-keys [:launch-command :release-artifact])
-                           (assoc :releases-bucket releases-bucket)
-                           (render-mustache "files/run-server.sh"))
+            :user-data (or user-data
+                           (-> m
+                               (select-keys [:launch-command :release-artifact])
+                               (assoc :releases-bucket releases-bucket)
+                               (render-mustache "files/run-server.sh")))
             :key-name key-name
             :lifecycle {:create-before-destroy false}}])))
 

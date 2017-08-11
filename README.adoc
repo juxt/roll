@@ -74,22 +74,15 @@ Here is a sample Machfile configured with Roll, Terraform and some useful AWS ta
 ```
 {tfjson {product "deployment.tf.json"
          novelty (mach.core/modified-since product ["Machfile.edn" "roll.edn"])
-         produce (let [{:keys [profile] :as config} (aero.core/read-config "roll.edn" {})]
+         produce (let [config (aero.core/read-config "roll.edn" {})]
                    (-> config
                        (roll.core/preprocess)
-                       (roll.core/deployment->tf {:roll-home ".mach/roll"})
-
-                       ;; Add more bespoke Terraform configuration here
-
+                       (roll.core/deployment->tf)
                        (roll.core/->tf-json)))}
 
- mach/m2 [[aero "1.1.2"]]
- mach/import [["https://raw.githubusercontent.com/juxt/mach/master/extensions/aws.mach.edn" {profile "xxx"}]
-              ["https://raw.githubusercontent.com/juxt/mach/master/extensions/roll.mach.edn"]
-              ["https://raw.githubusercontent.com/juxt/mach/master/extensions/terraform.mach.edn"
-               {aws-profile "xx"
-                bucket "xxx"
-                configs []}]]}
+ mach/m2 [[aero "1.1.2"]
+          [roll "0.0.5-SNAPSHOT"]]
+}
 ```
 
 From the command-line
@@ -101,7 +94,7 @@ mach apply
 
 Enjoy!
 
-See our https://github.com/juxt/edge[Edge] project for an example usage of Mach and Roll.
+See our https://github.com/juxt/edge/blob/roll/Machfile.edn[Edge] project for an example usage of Mach and Roll.
 
 == Configuration
 

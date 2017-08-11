@@ -21,7 +21,7 @@
 (defmethod build-user-data :java8 [config asg launch-config]
   (let [release-artifact (-> asg :release-artifact)
         jvm-opts (-> launch-config :args :jvm-opts)
-        cmd (str "java " (clojure.string/join jvm-opts " ") " -jar " release-artifact)]
+        cmd (str "java " (clojure.string/join " " jvm-opts) " -jar " release-artifact)]
 
     (build-user-data config asg (-> launch-config
                                     (assoc :template :default)

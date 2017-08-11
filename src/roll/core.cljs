@@ -65,21 +65,36 @@
 (s/def :service/instance-count int?)
 (s/def :service/availability-zones (s/coll-of string? :kind vector?))
 (s/def :service/port int?)
+
+(s/def :launch-config/jvm-opts (s/coll-of string? :kind vector?))
+(s/def :launch-config/launch-command string?)
+(s/def :launch-config/args (s/keys :opt-un [:launch-config/jvm-opts
+                                            :launch-config/launch-command]))
+(s/def :launch-config/template #{:default :java8})
+(s/def :service/launch-config (s/keys :req-un [:launch-config/template]
+                                      :opt-un [:launch-config/args]))
+
+(s/def :service/user-data string?)
+
+;; Todo how?:
+;;(s/def :service/user-data-or-launch-config (s/or :service/user-data :service/launch-config))
+
 (s/def ::service (s/keys :req-un [:service/ami
                                   :service/instance-type
                                   :service/key-name
                                   :service/instance-count
                                   :service/availability-zones
-                                  :service/port]))
+                                  :service/port]
+                         :opt-un [:service/user-data
+                                  :service/launch-config]))
 (s/def ::services (s/map-of keyword? ::service))
 
 (s/def :asg/service keyword?)
 (s/def :asg/release-artifact string?)
 (s/def :asg/version string?)
-(s/def :asg/user-data string?)
 (s/def :asg/load-balancer keyword?)
 (s/def ::asg (s/keys :req-un [:asg/service :asg/release-artifact :asg/version]
-                     :opt-un [:asg/load-balancer :asg/user-data]))
+                     :opt-un [:asg/load-balancer]))
 (s/def ::asgs (s/coll-of ::asg))
 
 (s/def :bastion/key-name string?)

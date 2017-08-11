@@ -1,10 +1,36 @@
 (ns roll.modules.asg
   (:require [roll.utils :refer [render-mustache ref-var]]))
 
+(defmulti build-user-data (fn [config asg {:keys [template]}] template))
+
+(defmethod build-user-data :default [config asg launch-config]
+  (let [releases-bucket (-> config :releases-bucket)
+        release-artifact (-> asg :release-artifact)
+        launch-command (-> launch-config :args :launch-command)]
+
+    ;; Todo move to spec:
+    (assert releases-bucket "releases-bucket")
+    (assert release-artifact "release-artifact")
+    (assert launch-command "Launch command")
+
+    (render-mustache {:releases-bucket releases-bucket
+                      :release-artifact release-artifact
+                      :launch-command launch-command}
+                     "files/run-server.sh")))
+
+(defmethod build-user-data :java8 [config asg launch-config]
+  (let [release-artifact (-> asg :release-artifact)
+        jvm-opts (-> launch-config :args :jvm-opts)
+        cmd (str "java " (clojure.string/join jvm-opts " ") " -jar " release-artifact)]
+
+    (build-user-data config asg (-> launch-config
+                                    (assoc :template :default)
+                                    (assoc-in [:args :launch-command] cmd)))))
+
 (defn- launch-configurations [{:keys [environment releases-bucket] :as config}]
   (into {}
-        (for [{:keys [service version load-balancer launch-command release-artifact user-data] :as m} (:asgs config)
-              :let [{:keys [instance-type ami key-name]} (-> config :services service)]]
+        (for [{:keys [service version load-balancer release-artifact] :as asg} (:asgs config)
+              :let [{:keys [instance-type ami key-name launch-config user-data]} (-> config :services service)]]
           [(str environment "-" (name service) "-" version)
            {:name-prefix environment
             :image-id ami
@@ -12,10 +38,7 @@
             :security-groups [(ref-var [:aws-security-group service :id])]
             :iam-instance-profile (ref-var [:aws-iam-instance-profile service :name])
             :user-data (or user-data
-                           (-> m
-                               (select-keys [:launch-command :release-artifact])
-                               (assoc :releases-bucket releases-bucket)
-                               (render-mustache "files/run-server.sh")))
+                           (build-user-data config asg launch-config))
             :key-name key-name
             :lifecycle {:create-before-destroy false}}])))
 

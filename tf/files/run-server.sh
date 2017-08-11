@@ -11,6 +11,6 @@ mkdir /releases
 
 aws s3 cp s3://{{releases-bucket}}/{{release-artifact}} /releases
 
-echo "Launching..."
 cd /releases
+echo "Launching..."
 {{launch-command}}

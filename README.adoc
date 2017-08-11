@@ -34,7 +34,7 @@ Using KMS Encryption keys is a great way of handling sensitive application confi
 
 === It's just data
 
-Roll takes in a Clojure map as the main argument and will give you a clojrue map bacl, see the sample (for an example of this).
+Roll takes in a Clojure map as the main argument and will give you a clojure map back, see the sample (for an example of this).
 
 Roll has three stages, allowing you to hook in and manipulate the input/output data-structures for your own needs.
 

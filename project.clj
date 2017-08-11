@@ -1,6 +1,6 @@
 ;; Copyright © 2017, JUXT LTD.
 
-(defproject roll "0.0.5-SNAPSHOT"
+(defproject roll "0.0.5"
   :description "Rolling Terraform releases orchestrated with ClojureScript."
   :url "http://github.com/juxt/roll"
   :license {:name "The MIT License"
@@ -13,6 +13,3 @@
                                   [org.clojure/test.check "0.9.0"]]}}
   :plugins [[shmish111/lein-git-version "1.0.17"]]
   :git-version-root-ns "roll")
-
-
-;; add tesst in here. 23

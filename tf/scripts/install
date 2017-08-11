@@ -1,8 +1,0 @@
-#!/bin/bash -eux
-pacman --noconfirm -Sy
-# termite-terminfo: required to make termite work properly when ssh'ing
-pacman --noconfirm -S jdk8-openjdk aws-cli npm git termite-terminfo
-npm install -g \@juxt/mach lumo-cljs
-
-curl https://raw.githubusercontent.com/technomancy/leiningen/stable/bin/lein -o /usr/local/bin/lein
-chmod +x /usr/local/bin/lein

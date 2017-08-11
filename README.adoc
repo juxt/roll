@@ -8,7 +8,7 @@ Roll operates on a per environment basis, so you can have a dedicated Roll confi
 
 Roll assumes that deployable application versions are accessible in S3, and asks you to provide the start-up instructions. Therefore it's orthogonal to whether you want to use Uberjars, Docker containers, or whatever else.
 
-WARNING: Warning: Roll is in active development, everything about it - including this document - is being modified on a regular basis. Currently it is not recommended for general usage.
+WARNING: Roll is in active development, everything about it - including this document - is being modified on a regular basis. Currently it is not recommended for general usage.
 
 == Features
 

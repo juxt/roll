@@ -4,7 +4,7 @@
   (:require [cljs.nodejs :as nodejs]
             [clojure.string :as str]
             [clojure.walk :refer [postwalk]]
-            [cljs.spec :as s]
+            [cljs.spec.alpha :as s]
             [cljs.reader :as reader]
             [roll.modules.route-53]
             [roll.modules.asg]

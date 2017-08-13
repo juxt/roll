@@ -1,6 +1,6 @@
 ;; Copyright © 2017, JUXT LTD.
 
-(defproject roll "0.0.5"
+(defproject roll "0.0.6-SNAPSHOT"
   :description "Rolling Terraform releases orchestrated with ClojureScript."
   :url "http://github.com/juxt/roll"
   :license {:name "The MIT License"

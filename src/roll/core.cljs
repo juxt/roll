@@ -14,7 +14,8 @@
             [roll.modules.bastion]
             [cljs.pprint :as pprint]
             [roll.utils :refer [->json]]
-            [meta-merge.core :refer [meta-merge]]))
+            [meta-merge.core :refer [meta-merge]]
+            [lumo.io :as io]))
 
 ;; The environment is used as a prefix to segregate all the named constructs in AWS
 (s/def ::environment string?)
@@ -79,14 +80,14 @@
 ;; Todo how?:
 ;;(s/def :service/user-data-or-launch-config (s/or :service/user-data :service/launch-config))
 
-(s/def ::service (s/keys :req-un [:service/ami
-                                  :service/instance-type
+(s/def ::service (s/keys :req-un [:service/instance-type
                                   :service/key-name
                                   :service/instance-count
                                   :service/availability-zones
                                   :service/port]
                          :opt-un [:service/user-data
-                                  :service/launch-config]))
+                                  :service/launch-config
+                                  :service/ami]))
 (s/def ::services (s/map-of keyword? ::service))
 
 (s/def :asg/service keyword?)
@@ -219,6 +220,19 @@
                                       [k (assoc service :availability-zones (or (:availability-zones service)
                                                                                 default-availability-zones))]))))))
 
+(def ^:private
+  region-ami-lookup
+  (reader/read-string (io/slurp (io/resource "roll/ami-lookup.edn"))))
+
+(defn- resolve-service-ami
+  [config]
+  (update config
+          :services
+          (fn [services]
+            (into {}
+                  (for [[k service] services]
+                    [k (assoc service :ami (region-ami-lookup (:aws-region config)))])))))
+
 (defn preprocess [config & [{:keys [cache-file] :as opts}]]
   (or (and cache-file (fs.existsSync cache-file) (reader/read-string (fs.readFileSync cache-file "utf-8")))
       (let [config (reduce #(or (%2 %1) %1) config [resolve-region
@@ -226,7 +240,8 @@
                                                     resolve-asg-versions
                                                     resolve-vpc
                                                     resolve-subnets
-                                                    resolve-service-availability-zones])]
+                                                    resolve-service-availability-zones
+                                                    resolve-service-ami])]
         (when cache-file
           (fs.writeFileSync cache-file config))
         config)))

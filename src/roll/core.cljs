@@ -146,6 +146,21 @@
          "--metadata" (str "Version=" version)
          "--profile" aws-profile])))
 
+(defn git-version []
+  (let [result (.spawnSync child_process
+                           "git"
+                           (clj->js ["describe" "--dirty" "--long" "--tags" "--match" "[0-9]*"])
+                           #js {"shell" true})]
+
+    (cond (= 0 (.-status result))
+          (str (.-stdout result))
+
+          (re-find #"No names found" (.toString (.-stderr result) "utf8"))
+          (sh ["git rev-parse --short HEAD"])
+
+          :else
+          (throw (js/Error. "Could not determine git version, try adding a commit.")))))
+
 (defn resolve-region [{:keys [aws-profile aws-region] :as config}]
   (when-not aws-region
     (assoc config :aws-region

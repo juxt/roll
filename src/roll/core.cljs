@@ -153,10 +153,10 @@
                            #js {"shell" true})]
 
     (cond (= 0 (.-status result))
-          (str (.-stdout result))
+          (.trim (str (.-stdout result)))
 
           (re-find #"No names found" (.toString (.-stderr result) "utf8"))
-          (sh ["git rev-parse --short HEAD"])
+          (.trim (sh ["git rev-parse --short HEAD"]))
 
           :else
           (throw (js/Error. "Could not determine git version, try adding a commit.")))))

@@ -28,7 +28,7 @@
 (s/def ::subnets (s/coll-of string? :kind vector?))
 
 ;; Use for AWS provider
-(s/def ::aws-profile (s/nilable string?))
+(s/def ::aws-profile string?)
 ;; Use for AWS provider
 (s/def ::aws-region string?)
 
@@ -116,6 +116,9 @@
                                  ::load-balancers
                                  ::asgs]))
 
+;; The minimum config required prior to preprocessing/enrichin
+(s/def ::base-config (s/keys :req-un [::aws-profile]))
+
 (def child_process (cljs.nodejs/require "child_process"))
 
 (defn sh [args]
@@ -131,8 +134,7 @@
     (str (.-stdout result))))
 
 (defn- aws-cmd [{:keys [aws-profile] :as config} & parts]
-  (let [cmd (vec (concat ["aws"] parts (when aws-profile
-                                         ["--profile" aws-profile])))]
+  (let [cmd (vec (concat ["aws"] parts ["--profile" aws-profile]))]
     (js->clj (js/JSON.parse (sh cmd)))))
 
 (defn upload!
@@ -148,8 +150,7 @@
   (when-not aws-region
     (assoc config :aws-region
            (.trim (sh (vec (concat ["aws" "configure" "get" "region"]
-                                   (when aws-profile
-                                     ["--profile" aws-profile]))))))))
+                                   ["--profile" aws-profile])))))))
 
 (defn- resolve-vpc [{:keys [vpc-id]:as config}]
   (when-not vpc-id
@@ -166,8 +167,7 @@
 
 (defn- latest-release-artifact [config]
   (->> (str/split (sh (vec (concat ["aws" "s3" "ls" (:releases-bucket config)]
-                                   (when (-> config :aws-profile)
-                                     ["--profile" (-> config :aws-profile)])))) "\n")
+                                   ["--profile" (-> config :aws-profile)]))) "\n")
        (map #(str/split % #"\s+"))
        (sort-by (juxt first second))
        last
@@ -234,6 +234,9 @@
                     [k (assoc service :ami (region-ami-lookup (:aws-region config)))])))))
 
 (defn preprocess [config & [{:keys [cache-file] :as opts}]]
+  (when (= ::s/invalid (s/conform ::base-config config))
+    (throw (ex-info "Invalid input" (s/explain-data ::base-config config))))
+
   (or (and cache-file (fs.existsSync cache-file) (reader/read-string (fs.readFileSync cache-file "utf-8")))
       (let [config (reduce #(or (%2 %1) %1) config [resolve-region
                                                     resolve-latest-release-artifact

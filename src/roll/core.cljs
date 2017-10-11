@@ -126,7 +126,7 @@
 
     (when-not (= 0 (.-status result))
       (do (println (.toString (.-stderr result) "utf8"))
-          (throw (js/Error. (str "Error whilst performing shell command.")))))
+          (throw (js/Error. (str "Error whilst performing shell command: " (pr-str args))))))
 
     (str (.-stdout result))))
 

@@ -40,7 +40,7 @@
             :user-data (or user-data
                            (build-user-data config asg launch-config))
             :key-name key-name
-            :lifecycle {:create-before-destroy false}}])))
+            :lifecycle {:create-before-destroy true}}])))
 
 (defn- auto-scaling-groups [{:keys [environment] :as config}]
   (into {}

@@ -61,4 +61,10 @@
      {:aws-security-group (security-groups config)
       :aws-alb (albs config)
       :aws-alb-listener (listeners config)
-      :aws-alb-target-group (target-groups config)}}))
+      :aws-alb-target-group (target-groups config)}
+     :output
+     (into {}
+           (for [[balancer listeners] (:load-balancers config)
+                 :let [listen-ports (map :listen listeners)]]
+             [(str (name balancer) "-alb-dns")
+              {:value (ref-var [:aws-alb (name balancer) :dns-name])}]))}))

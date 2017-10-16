@@ -6,7 +6,8 @@
 (defmethod build-user-data :default [config asg launch-config]
   (let [releases-bucket (-> config :releases-bucket)
         release-artifact (-> asg :release-artifact)
-        launch-command (-> launch-config :args :launch-command)]
+        launch-command (-> launch-config :args :launch-command)
+        env-vars (-> launch-config :args :env-vars)]
 
     ;; Todo move to spec:
     (assert releases-bucket "releases-bucket")
@@ -15,7 +16,10 @@
 
     (render-mustache {:releases-bucket releases-bucket
                       :release-artifact release-artifact
-                      :launch-command launch-command}
+                      :launch-command launch-command
+                      :env-vars (for [[k v] env-vars]
+                                  {:name (-> k name .toUpperCase (clojure.string/replace "-" "_"))
+                                   :value v})}
                      "files/run-server.sh")))
 
 (defmethod build-user-data :java8 [config asg launch-config]

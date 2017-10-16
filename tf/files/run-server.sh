@@ -11,6 +11,11 @@ mkdir /releases
 
 aws s3 cp s3://{{releases-bucket}}/{{release-artifact}} /releases
 
+{{#env-vars}}
+echo "Setting environment variable {{name}}={{value}}"
+export {{name}}={{value}}
+{{/env-vars}}
+
 cd /releases
 echo "Launching..."
 {{launch-command}}

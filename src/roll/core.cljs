@@ -250,7 +250,7 @@
 
 (defn preprocess [config & [{:keys [cache-file] :as opts}]]
   (when (= ::s/invalid (s/conform ::base-config config))
-    (throw (ex-info "Invalid input" (s/explain-data ::base-config config))))
+    (throw (js/Error. (str "Invalid input: " (prn-str (s/explain-data ::base-config config))))))
 
   (or (and cache-file (fs.existsSync cache-file) (reader/read-string (fs.readFileSync cache-file "utf-8")))
       (let [config (reduce #(or (%2 %1) %1) config [resolve-region
@@ -287,6 +287,6 @@
 (defn deployment->tf [{:keys [environment releases-bucket aws-profile aws-region] :as config}]
   (when (= ::s/invalid (s/conform ::config config))
     (println (s/explain-data ::config config))
-    (throw (ex-info "Invalid input" (s/explain-data ::config config))))
+    (throw (js/Error. (str "Invalid input: " (prn-str (s/explain-data ::config config))))))
 
   (config->tf config))

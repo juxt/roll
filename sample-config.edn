@@ -38,6 +38,7 @@
                           :instance-type "MM3rF"
                           :key-name "ECujWD76I0xIym62TD"
                           :instance-count 7
+                          :port 8080
                           :availability-zones ["eu-west-1a" "eu-west-1b"]}}
 
  ;; The auto scaling groups (ASGs)

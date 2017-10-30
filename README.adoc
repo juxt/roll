@@ -88,6 +88,7 @@ Here is a sample Machfile configured with Roll, Terraform and some useful AWS ta
 From the command-line
 
 ```
+mach tfjson
 mach plan
 mach apply
 ```

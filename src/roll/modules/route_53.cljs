@@ -1,5 +1,5 @@
 (ns roll.modules.route-53
-  (:require [roll.utils :refer [tf-path-to ref-var]]
+  (:require [roll.utils :refer [tf-path-to $]]
             [clojure.string]))
 
 (defn generate
@@ -17,5 +17,5 @@
                 :type "A"
                 :alias { ;;https://github.com/hashicorp/terraform/issues/10869 for why we do lower
                         :name (str "${lower(" (tf-path-to [:aws-alb load-balancer :dns-name]) ")}")
-                        :zone-id (ref-var [:aws-alb load-balancer :zone-id])
+                        :zone-id ($ [:aws-alb load-balancer :zone-id])
                         :evaluate-target-health false}}]))}}))

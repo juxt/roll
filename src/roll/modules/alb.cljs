@@ -1,17 +1,17 @@
 (ns roll.modules.alb
-  (:require [roll.utils :refer [resolve-path ref-var]]))
+  (:require [roll.utils :refer [resolve-path $]]))
 
 (defn- listeners [config]
   (into {}
         (for [[balancer listeners] (:load-balancers config)
               [i {:keys [listen protocol ssl-policy certificate-arn]}] (map-indexed vector listeners)]
           [(resolve-path [balancer (str i)])
-           {:load-balancer-arn (ref-var [:aws-alb balancer :arn])
+           {:load-balancer-arn ($ [:aws-alb balancer :arn])
             :port listen
             :protocol protocol
             :ssl-policy ssl-policy
             :certificate-arn certificate-arn
-            :default-action {:target-group-arn (ref-var [:aws-alb-target-group balancer :arn])
+            :default-action {:target-group-arn ($ [:aws-alb-target-group balancer :arn])
                              :type "forward"}}])))
 
 (defn- security-groups
@@ -23,7 +23,7 @@
           [(resolve-path [balancer (str port)])
            {:name (str environment "-" (name balancer) "-" port "-alb-sg")
             :description "controls access to the application load balancer"
-            :vpc-id (ref-var [:local :vpc-id])
+            :vpc-id ($ [:local :vpc-id])
             :ingress {:protocol    "tcp"
                       :from_port   port
                       :to_port     port
@@ -43,7 +43,7 @@
            {:name (str environment "-" (name balancer) "-" i "-alb-tg")
             :port forward
             :protocol protocol
-            :vpc-id (ref-var [:local :vpc-id])}])))
+            :vpc-id ($ [:local :vpc-id])}])))
 
 (defn albs [{:keys [load-balancers environment] :as config}]
   (into {}
@@ -52,8 +52,8 @@
           [(name balancer)
            {:name (str environment "-" (name balancer) "-alb")
             :internal false
-            :security-groups (map (fn [port] (ref-var [:aws-security-group (resolve-path [balancer (str port)]) :id])) listen-ports)
-            :subnets [(ref-var [:local :subnet-ids])]
+            :security-groups (map (fn [port] ($ [:aws-security-group (resolve-path [balancer (str port)]) :id])) listen-ports)
+            :subnets [($ [:local :subnet-ids])]
             :enable-deletion-protection false}])))
 
 (defn generate [config]
@@ -68,4 +68,4 @@
            (for [[balancer listeners] (:load-balancers config)
                  :let [listen-ports (map :listen listeners)]]
              [(str (name balancer) "-alb-dns")
-              {:value (ref-var [:aws-alb (name balancer) :dns-name])}]))}))
+              {:value ($ [:aws-alb (name balancer) :dns-name])}]))}))

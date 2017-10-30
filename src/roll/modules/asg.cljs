@@ -1,5 +1,5 @@
 (ns roll.modules.asg
-  (:require [roll.utils :refer [render-mustache ref-var]]))
+  (:require [roll.utils :refer [render-mustache $]]))
 
 (defmulti build-user-data (fn [config asg {:keys [template]}] template))
 
@@ -39,8 +39,8 @@
            {:name-prefix environment
             :image-id ami
             :instance-type instance-type
-            :security-groups [(ref-var [:aws-security-group service :id])]
-            :iam-instance-profile (ref-var [:aws-iam-instance-profile service :name])
+            :security-groups [($ [:aws-security-group service :id])]
+            :iam-instance-profile ($ [:aws-iam-instance-profile service :name])
             :user-data (or user-data
                            (build-user-data config asg launch-config))
             :key-name key-name
@@ -60,8 +60,8 @@
              :name                  asg-name
              :max-size              (str instance-count)
              :min-size              (str instance-count)
-             :launch-configuration  (ref-var [:aws-launch-configuration asg-name :name])
-             :vpc_zone_identifier [(ref-var [:local :subnet-ids])]
+             :launch-configuration  ($ [:aws-launch-configuration asg-name :name])
+             :vpc_zone_identifier [($ [:local :subnet-ids])]
 
              :tag [{:key "Name"
                     :value asg-name
@@ -69,7 +69,7 @@
 
              :lifecycle {:create_before_destroy true}}
             (when load-balancer
-              {:target-group-arns [(ref-var [:aws-alb-target-group load-balancer :arn])]}))])))
+              {:target-group-arns [($ [:aws-alb-target-group load-balancer :arn])]}))])))
 
 (defn generate [config]
   (when (not-empty (:asgs config))

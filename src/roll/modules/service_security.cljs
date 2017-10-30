@@ -1,5 +1,5 @@
 (ns roll.modules.service-security
-  (:require [roll.utils :refer [resolve-path ->json ref-var ->snake]]))
+  (:require [roll.utils :refer [resolve-path ->json $ ->snake]]))
 
 (defn- aws-security-groups
   "Generate a security group for each service."
@@ -9,7 +9,7 @@
              [service-k
               {:name environment
                :description (str "Allow access to " environment" application")
-               :vpc-id (ref-var [:local :vpc-id])
+               :vpc-id ($ [:local :vpc-id])
 
                :ingress (remove nil?
                                 [{:from-port 22
@@ -52,7 +52,7 @@
                  :let [environment (str environment "-" (name service))]]
              [service
               {:name environment
-               :role (ref-var [:aws-iam-role service :name])}])))
+               :role ($ [:aws-iam-role service :name])}])))
 
 (defn- aws-iam-role-policies
   "Every service we run needs access to S3 to fetch releases, plus
@@ -61,7 +61,7 @@
   (into {} (for [[service {:keys [policies]}] services]
              [service
               {:name (str environment "-" (name service))
-               :role (ref-var [:aws-iam-role service :id])
+               :role ($ [:aws-iam-role service :id])
                :policy (->json
                         {:Statement
                          (concat [{:Effect "Allow"

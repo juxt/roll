@@ -1,5 +1,5 @@
 (ns roll.modules.bastion
-  (:require [roll.utils :refer [resolve-path ->json ref-var]]))
+  (:require [roll.utils :refer [resolve-path ->json $]]))
 
 (defn- aws-security-group
   "Generate a security group for the bastion."
@@ -36,16 +36,16 @@
 (defn- aws-iam-instance-profile [{:keys [environment] :as config}]
   {:bastion
    {:name (str environment "-bastion")
-    :roles [(ref-var [:aws-iam-role :bastion :name])]}})
+    :roles [($ [:aws-iam-role :bastion :name])]}})
 
 (defn- aws-instance [{:keys [environment] :as config}]
   {:bastion
    {:ami "ami-0c391c6a"
     :instance-type "t2.medium"
     :availability-zone "eu-west-1a"
-    :iam-instance-profile (ref-var [:aws-iam-instance-profile :bastion :name])
+    :iam-instance-profile ($ [:aws-iam-instance-profile :bastion :name])
     :associate-public-ip-address true
-    :vpc_security_group_ids [(ref-var [:aws-security-group :bastion :id])]
+    :vpc_security_group_ids [($ [:aws-security-group :bastion :id])]
     :key-name (-> config :bastion :key-name)
     :user-data (or (-> config :bastion :user-data) "")
     :tags [{:Name (str environment "-bastion")

@@ -1,5 +1,5 @@
 (ns roll.modules.kms
-  (:require [roll.utils :refer [ref-var]]))
+  (:require [roll.utils :refer [$]]))
 
 (defn- iam-policy [{:keys [root-arn admin-arns user-arns attachment-arns]}]
   {:statement [{:sid "Enable IAM User Permissions"
@@ -45,9 +45,9 @@
 
 (defn- generate-policy [config]
   (when (:kms config)
-    (let [users (cons (ref-var [:aws-iam-role :bastion :arn])
+    (let [users (cons ($ [:aws-iam-role :bastion :arn])
                       (for [service (keys (:services config))]
-                        (ref-var [:aws-iam-role service :arn])))]
+                        ($ [:aws-iam-role service :arn])))]
       {:aws-iam-policy-document {:kms-policy (iam-policy {:root-arn (-> config :kms :root)
                                                           :admin-arns (-> config :kms :admins)
                                                           :user-arns users
@@ -62,7 +62,7 @@
      (generate-policy config)
      :resource
      {:aws-kms-alias {:alias {:name (str "alias/" environment)
-                              :target-key-id (ref-var [:aws-kms-key :default :key-id])}}
+                              :target-key-id ($ [:aws-kms-key :default :key-id])}}
       :aws-kms-key {:default {:description "Key"
                               :deletion_window_in_days 20
-                              :policy (ref-var [:data :aws-iam-policy-document :kms-policy :json])}}}}))
+                              :policy ($ [:data :aws-iam-policy-document :kms-policy :json])}}}}))

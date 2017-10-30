@@ -14,7 +14,7 @@
        (map ->snake)
        (clojure.string/join ".")))
 
-(defn ref-var [path]
+(defn $ [path]
   (str "${" (tf-path-to path) "}"))
 
 (defn render-mustache [m t]

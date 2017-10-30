@@ -44,7 +44,8 @@
             :user-data (or user-data
                            (build-user-data config asg launch-config))
             :key-name key-name
-            :lifecycle {:create-before-destroy true}}])))
+            :lifecycle {:create-before-destroy true}
+            :associate-public-ip-address true}])))
 
 (defn- auto-scaling-groups [{:keys [environment] :as config}]
   (into {}
@@ -60,6 +61,7 @@
              :max-size              (str instance-count)
              :min-size              (str instance-count)
              :launch-configuration  (ref-var [:aws-launch-configuration asg-name :name])
+             :vpc_zone_identifier [(ref-var [:local :subnet-ids])]
 
              :tag [{:key "Name"
                     :value asg-name

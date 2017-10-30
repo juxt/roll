@@ -11,6 +11,7 @@
             [roll.modules.alb]
             [roll.modules.service-security]
             [roll.modules.kms]
+            [roll.modules.vpc]
             [roll.modules.bastion]
             [cljs.pprint :as pprint]
             [roll.utils :refer [->json]]
@@ -24,8 +25,8 @@
 (s/def ::releases-bucket string?)
 ;; The vpc-id is required by AWS Auto Scaling Groups
 (s/def ::vpc-id string?)
-;; Subnets - required for Auto Scaling Groups. TODO can we fetch these?
-(s/def ::subnets (s/coll-of string? :kind vector?))
+;; Subnet IDs - required for ALBs (load balancers)
+(s/def ::subnet-ids (s/coll-of string? :kind vector?))
 
 ;; Use for AWS provider
 (s/def ::aws-profile string?)
@@ -103,18 +104,26 @@
 (s/def ::bastion (s/keys :req-un [:bastion/key-name]
                          :opt-un [:bastion/user-data]))
 
+(s/def :subnet/availability-zone string?)
+(s/def :subnet/index int?)
+
+(s/def ::subnet (s/keys :req-un [:subnet/availability-zone
+                                 :subnet/index]))
+(s/def ::subnets (s/map-of string? ::subnet))
+
 (s/def ::config (s/keys :req-un [::environment
                                  ::releases-bucket
-                                 ::vpc-id
-                                 ::subnets
                                  ::services
                                  ::aws-region
                                  ::aws-profile]
-                        :opt-un [::bastion
+                        :opt-un [::vpc-id
+                                 ::subnet-ids
+                                 ::bastion
                                  ::route-53-aliases
                                  ::kms
                                  ::load-balancers
-                                 ::asgs]))
+                                 ::asgs
+                                 ::subnets]))
 
 ;; The minimum config required prior to preprocessing/enrichin
 (s/def ::base-config (s/keys :req-un [::aws-profile]))
@@ -168,17 +177,20 @@
                                    ["--profile" aws-profile])))))))
 
 (defn- resolve-vpc [{:keys [vpc-id]:as config}]
-  (when-not vpc-id
+  (when (= vpc-id ::default)
     (assoc config :vpc-id (aws-cmd config
                                    "ec2" "describe-vpcs"
                                    "--query" "\"Vpcs[]|[0]|VpcId\"" "--filters" "Name=isDefault,Values=true"))))
 
-(defn- resolve-subnets [{:keys [subnets vpc-id] :as config}]
-  (when-not subnets
-    (assoc config :subnets (mapv #(get % "SubnetId") (-> (aws-cmd config
-                                                                  "ec2" "describe-subnets"
-                                                                  "--filters" (str "\"Name=vpc-id,Values=" vpc-id "\""))
-                                                         (get "Subnets"))))))
+(defn- resolve-subnet-ids
+  "When the user has specified a VPC, but not the subnet-ids, we need to
+  resolve the subnet-ids."
+  [{:keys [subnet-ids vpc-id] :as config}]
+  (when (and vpc-id (not subnet-ids))
+    (assoc config :subnet-ids (mapv #(get % "SubnetId") (-> (aws-cmd config
+                                                                     "ec2" "describe-subnets"
+                                                                     "--filters" (str "\"Name=vpc-id,Values=" vpc-id "\""))
+                                                            (get "Subnets"))))))
 
 (defn- latest-release-artifact [config]
   (->> (str/split (sh (vec (concat ["aws" "s3" "ls" (:releases-bucket config)]
@@ -248,6 +260,18 @@
                   (for [[k service] services]
                     [k (assoc service :ami (region-ami-lookup (:aws-region config)))])))))
 
+(defn- enrich-with-subnets
+  [{:keys [vpc-id subnets] :as config}]
+  (let [availability-zones (sort (distinct (mapcat :availability-zones (vals (:services config)))))]
+    (when (and (not vpc-id) (not subnets))
+      (assoc config :subnets
+             (into {}
+                   (for [[idx availability-zone] (map-indexed vector availability-zones)
+                         :let [idx (inc idx)]]
+                     [availability-zone
+                      {:availability-zone availability-zone
+                       :index idx}]))))))
+
 (defn preprocess [config & [{:keys [cache-file] :as opts}]]
   (when (= ::s/invalid (s/conform ::base-config config))
     (throw (js/Error. (str "Invalid input: " (prn-str (s/explain-data ::base-config config))))))
@@ -257,9 +281,10 @@
                                                     resolve-latest-release-artifact
                                                     resolve-asg-versions
                                                     resolve-vpc
-                                                    resolve-subnets
+                                                    resolve-subnet-ids
                                                     resolve-service-availability-zones
-                                                    resolve-service-ami])]
+                                                    resolve-service-ami
+                                                    enrich-with-subnets])]
         (when cache-file
           (fs.writeFileSync cache-file config))
         config)))
@@ -277,6 +302,7 @@
 (defn- config->tf [{:keys [aws-profile aws-region] :as config}]
   (meta-merge {:provider {"aws" {:profile aws-profile
                                  :region aws-region}}}
+              (roll.modules.vpc/generate config)
               (roll.modules.route-53/generate config)
               (roll.modules.alb/generate config)
               (roll.modules.asg/generate config)

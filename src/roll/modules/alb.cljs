@@ -23,6 +23,7 @@
           [(resolve-path [balancer (str port)])
            {:name (str environment "-" (name balancer) "-" port "-alb-sg")
             :description "controls access to the application load balancer"
+            :vpc-id (ref-var [:local :vpc-id])
             :ingress {:protocol    "tcp"
                       :from_port   port
                       :to_port     port
@@ -32,7 +33,7 @@
                      :to_port     0
                      :cidr_blocks ["0.0.0.0/0"]}}])))
 
-(defn- target-groups [{:keys [environment vpc-id load-balancers]}]
+(defn- target-groups [{:keys [environment load-balancers]}]
   (into {}
         (for [[balancer listeners] load-balancers
               [i {:keys [forward protocol] :or {forward 8080
@@ -42,9 +43,9 @@
            {:name (str environment "-" (name balancer) "-" i "-alb-tg")
             :port forward
             :protocol protocol
-            :vpc-id vpc-id}])))
+            :vpc-id (ref-var [:local :vpc-id])}])))
 
-(defn albs [{:keys [load-balancers environment subnets]}]
+(defn albs [{:keys [load-balancers environment] :as config}]
   (into {}
         (for [[balancer listeners] load-balancers
               :let [listen-ports (map :listen listeners)]]
@@ -52,7 +53,7 @@
            {:name (str environment "-" (name balancer) "-alb")
             :internal false
             :security-groups (map (fn [port] (ref-var [:aws-security-group (resolve-path [balancer (str port)]) :id])) listen-ports)
-            :subnets subnets
+            :subnets [(ref-var [:local :subnet-ids])]
             :enable-deletion-protection false}])))
 
 (defn generate [config]

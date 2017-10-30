@@ -9,6 +9,7 @@
              [service-k
               {:name environment
                :description (str "Allow access to " environment" application")
+               :vpc-id (ref-var [:local :vpc-id])
 
                :ingress (remove nil?
                                 [{:from-port 22

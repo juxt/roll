@@ -3,7 +3,13 @@
 
 {;; Environment is used to prefix the names of cloud constructs, to avoid name clashing
  :environment "staging-env"
-
+ 
+ ;; You need to create a profile with
+ ;; $ aws iam create-instance-profile --instance-profile-name my-profile
+ ;; Then you need to configure your aws-cli to use this profile (make sure to have your creds handy)
+ ;; $ aws iam create-instance-profile my-profile
+ :aws-profile "my-profile"
+ 
  ;; The id of the AWS VPC, Optional as Roll will look for the default vpc ID
  :vpc-id "Jcr3y5tSMc90fEhMb3U36ZOxQF"
 

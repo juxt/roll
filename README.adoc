@@ -10,7 +10,7 @@ Roll assumes that deployable application versions are accessible in S3, and asks
 
 WARNING: Roll is in active development, everything about it - including this document - is being modified on a regular basis. Currently it is not recommended for general usage.
 
-See our https://github.com/juxt/edge/blob/roll/Machfile.edn[Edge] project for an example usage of Mach and Roll.
+See our https://github.com/juxt/edge/blob/master/Machfile.edn[Edge] project for an example usage of Mach and Roll.
 
 == Requirements
 
@@ -101,7 +101,7 @@ mach apply
 
 Enjoy!
 
-See our https://github.com/juxt/edge/blob/roll/Machfile.edn[Edge] project for an example usage of Mach and Roll.
+See our https://github.com/juxt/edge/blob/master/Machfile.edn[Edge] project for an example usage of Mach and Roll.
 
 == Configuration
 
